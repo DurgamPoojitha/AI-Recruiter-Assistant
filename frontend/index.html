@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Recruiter Assistant | Resume Matcher</title>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="blob-1"></div>
+    <div class="blob-2"></div>
+    <div class="blob-3"></div>
+    
+    <div class="container glass-panel">
+        <header>
+            <h1>AI Recruiter Assistant</h1>
+            <p>Next-Gen Resume-to-Job Matching System powered by NLP Transformers</p>
+        </header>
+
+        <div class="main-content">
+            <div class="input-section">
+                <form id="analyze-form">
+                    
+                    <div class="input-group">
+                        <label for="resume-upload" class="section-label">1. Upload Resume</label>
+                        <div class="file-upload-wrapper">
+                            <input type="file" id="resume-upload" accept=".pdf,.txt" required>
+                            <div class="file-dummy">
+                                <span class="upload-icon">📄</span>
+                                <span class="default-text">Drop PDF or TXT here or click to browse</span>
+                                <span class="selected-text" id="file-name"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="job-description" class="section-label">2. Job Description</label>
+                        <textarea id="job-description" rows="6" placeholder="Paste the target job description here..." required></textarea>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="analyze-btn">
+                        <span class="btn-text">Analyze Match</span>
+                        <div class="loader hidden" id="loader"></div>
+                    </button>
+                </form>
+
+                <!-- Processing Steps -->
+                <div id="processing-steps" class="hidden">
+                    <div class="step" id="step-1">
+                        <div class="step-icon loader-small"></div>
+                        <span>Extracting text & parsing experience...</span>
+                    </div>
+                    <div class="step" id="step-2">
+                        <div class="step-icon loader-small"></div>
+                        <span>Extracting keyword skills...</span>
+                    </div>
+                    <div class="step" id="step-3">
+                        <div class="step-icon loader-small"></div>
+                        <span>Computing semantic similarity...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results-section hidden" id="results-panel">
+                <div class="score-card">
+                    <h2>Overall Match Score</h2>
+                    <div class="score-circle">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg"
+                              d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                            <path class="circle" id="score-circle-path"
+                              stroke-dasharray="0, 100"
+                              d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                            <text x="18" y="20.35" class="percentage" id="score-text">0%</text>
+                        </svg>
+                    </div>
+                    
+                    <div class="score-breakdown">
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">Semantic Similarity</span>
+                            <span class="breakdown-val" id="semantic-score-val">-</span>
+                        </div>
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">Skill Keyword Match</span>
+                            <span class="breakdown-val" id="skill-score-val">-</span>
+                        </div>
+                        <div class="breakdown-item experience-box">
+                            <span class="breakdown-label">Experience Mentioned</span>
+                            <span class="breakdown-val" id="experience-val">Resume: 0 Yrs | JD: 0 Yrs</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="details-card">
+                    <div class="detail-group">
+                        <h3><span class="icon">✅</span> Matched Skills</h3>
+                        <div class="pill-container" id="matched-skills"></div>
+                    </div>
+                    
+                    <div class="detail-group">
+                        <h3><span class="icon">⚠️</span> Missing Skills</h3>
+                        <div class="pill-container warning" id="missing-skills"></div>
+                    </div>
+
+                    <div class="detail-group">
+                        <h3><span class="icon">💡</span> AI Recommendations</h3>
+                        <div class="recommendation-list" id="recommendations"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
