@@ -69,3 +69,8 @@ swift
 kotlin
 react native
 flutter
+genai
+generative ai
+llm
+large language models
+prompt engineering

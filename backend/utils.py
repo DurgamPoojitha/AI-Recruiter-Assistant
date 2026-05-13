@@ -24,8 +24,8 @@ def preprocess_text(text):
     """
     # Lowercase
     text = text.lower()
-    # Remove special characters, but retain spaces and newlines
-    text = re.sub(r'[^a-z0-9\s]', ' ', text)
+    # Remove special characters, but retain spaces, newlines, and characters used in skills (+, #, ., /, -)
+    text = re.sub(r'[^a-z0-9\s\+\#\.\/\-]', ' ', text)
     # Remove extra spaces
     text = re.sub(r'\s+', ' ', text).strip()
     return text
