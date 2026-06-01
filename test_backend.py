@@ -105,3 +105,45 @@ def test_scoring_logic():
     # Combined score
     assert scoring.final_score > 0.0
     assert "Overall suitability match" in scoring.explanation
+
+def test_analyze_ats_endpoint():
+    import io
+    resume_content = b"""
+    Jane Doe
+    jane@example.com | (123) 456-7890
+    
+    Education
+    Bachelor of Science in Computer Science, 2021
+    
+    Skills
+    Python, Java, Git, Docker
+    
+    Experience
+    Software Engineer - Tech Corp (2021 - Present)
+    Built amazing backend APIs with Python and Docker.
+    
+    Projects
+    Personal AI Recruiter project in Python.
+    
+    Certifications
+    AWS Certified Cloud Practitioner
+    """
+    
+    response = client.post(
+        "/analyze_ats",
+        files={"resume": ("resume.txt", io.BytesIO(resume_content), "text/plain")}
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert "ats_score" in data
+    assert "strengths" in data
+    assert "weaknesses" in data
+    assert "recommendation" in data
+    assert "strength_breakdown" in data
+    assert "parsed_resume" in data
+    
+    breakdown = data["strength_breakdown"]
+    assert breakdown["technical_skills"] > 0
+    assert breakdown["projects"] > 0
+

@@ -34,3 +34,34 @@ class MatchAnalysisResponse(BaseModel):
     parsed_resume: ParsedResume
     parsed_jd: ParsedJD
     scoring: ScoringExplanation
+    
+    # Backwards compatibility flat fields for JS/HTML client
+    match_score: Optional[float] = Field(None, description="Flat match score representation")
+    semantic_score_val: Optional[float] = Field(None, alias="semantic_score", description="Flat semantic score representation")
+    skill_match_score: Optional[float] = Field(None, description="Flat skill match score representation")
+    resume_experience: Optional[float] = Field(None, description="Flat resume experience representation")
+    jd_experience: Optional[float] = Field(None, description="Flat JD experience representation")
+    matched_skills: List[str] = Field(default_factory=list, description="Flat matched skills representation")
+    missing_skills: List[str] = Field(default_factory=list, description="Flat missing skills representation")
+    recommendations: List[str] = Field(default_factory=list, description="Flat recommendations representation")
+
+    class Config:
+        populate_by_name = True
+        by_alias = True
+
+class ResumeStrengthBreakdown(BaseModel):
+    technical_skills: float = Field(..., description="Technical skills section score (0-100)")
+    projects: float = Field(..., description="Projects portfolio score (0-100)")
+    experience: float = Field(..., description="Work experience score (0-100)")
+    achievements: float = Field(..., description="Action/results-oriented achievements score (0-100)")
+    certifications: float = Field(..., description="Certifications check score (0-100)")
+
+class ATSAnalysisResponse(BaseModel):
+    filename: str = Field(..., description="Processed resume file name")
+    ats_score: float = Field(..., description="Overall ATS Score (0-100)")
+    strengths: List[str] = Field(default_factory=list, description="List of detected resume strengths")
+    weaknesses: List[str] = Field(default_factory=list, description="List of detected areas of improvement")
+    recommendation: str = Field(..., description="Textual hiring recommendation")
+    strength_breakdown: ResumeStrengthBreakdown
+    parsed_resume: ParsedResume
+
