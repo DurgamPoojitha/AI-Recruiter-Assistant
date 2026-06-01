@@ -1,7 +1,10 @@
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
-from backend.utils import extract_text_from_file, preprocess_text, load_skills, extract_skills, extract_experience
-from backend.model import compute_semantic_score, generate_recommendations
+from backend.utils import extract_text_from_file, preprocess_text, load_skills
+from backend.parsers.resume_parser import parse_resume
+from backend.parsers.jd_parser import parse_jd
+from backend.scoring import calculate_match
+from backend.schemas import MatchAnalysisResponse
 
 app = FastAPI(title="AI Recruiter API (Resume Matching System)")
 
@@ -21,7 +24,7 @@ PREDEFINED_SKILLS = load_skills()
 def read_root():
     return {"message": "Welcome to AI Recruiter API"}
 
-@app.post("/analyze")
+@app.post("/analyze", response_model=MatchAnalysisResponse)
 async def analyze_resume(
     resume: UploadFile = File(...),
     job_description: str = Form(...)
@@ -33,48 +36,30 @@ async def analyze_resume(
         # 1. Extract raw text from file (PDF/txt)
         raw_resume_text = extract_text_from_file(file_bytes, resume.filename)
         
-        # 2. Preprocess both texts
+        # 2. Parse structures
+        parsed_resume = parse_resume(raw_resume_text, PREDEFINED_SKILLS)
+        parsed_jd = parse_jd(job_description, PREDEFINED_SKILLS)
+        
+        # 3. Preprocess for MiniLM semantic similarity
         clean_resume = preprocess_text(raw_resume_text)
         clean_jd = preprocess_text(job_description)
         
-        # 3. Extract skills and experience
-        resume_skills = extract_skills(clean_resume, PREDEFINED_SKILLS)
-        jd_skills = extract_skills(clean_jd, PREDEFINED_SKILLS)
+        # 4. Compute Scores & Explanations (Weighted)
+        scoring_details = calculate_match(
+            resume=parsed_resume,
+            jd=parsed_jd,
+            clean_resume_text=clean_resume,
+            clean_jd_text=clean_jd
+        )
         
-        resume_experience = extract_experience(clean_resume)
-        jd_experience = extract_experience(clean_jd)
-        
-        # Calculate matched and missing skills
-        resume_skills_set = set(resume_skills)
-        jd_skills_set = set(jd_skills)
-        
-        matched_skills = list(resume_skills_set.intersection(jd_skills_set))
-        missing_skills = list(jd_skills_set.difference(resume_skills_set))
-        
-        # 4. Compute Scores (Hybrid)
-        semantic_score = compute_semantic_score(clean_resume, clean_jd)
-        
-        if len(jd_skills_set) > 0:
-            skill_overlap_percentage = (len(matched_skills) / len(jd_skills_set)) * 100
-        else:
-            skill_overlap_percentage = 100.0 if len(resume_skills_set) > 0 else 0.0
-            
-        composite_score = round(0.7 * semantic_score + 0.3 * skill_overlap_percentage, 1)
-        
-        # 5. Generate Recommendations
-        recommendations = generate_recommendations(missing_skills, jd_experience, resume_experience)
-        
-        return {
-            "match_score": composite_score,
-            "semantic_score": semantic_score,
-            "skill_match_score": round(skill_overlap_percentage, 1),
-            "resume_experience": resume_experience,
-            "jd_experience": jd_experience,
-            "matched_skills": matched_skills,
-            "missing_skills": missing_skills,
-            "recommendations": recommendations,
-            "filename": resume.filename
-        }
+        return MatchAnalysisResponse(
+            filename=resume.filename,
+            parsed_resume=parsed_resume,
+            parsed_jd=parsed_jd,
+            scoring=scoring_details
+        )
 
     except Exception as e:
-        return {"error": str(e)}
+        import traceback
+        traceback.print_exc()
+        raise RuntimeError(f"Failed to analyze resume: {str(e)}")
