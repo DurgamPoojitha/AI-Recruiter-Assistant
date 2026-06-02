@@ -147,3 +147,154 @@ def test_analyze_ats_endpoint():
     assert breakdown["technical_skills"] > 0
     assert breakdown["projects"] > 0
 
+def test_database_and_bulk_flow():
+    import io
+    from backend.database import init_db
+    
+    # Initialize a test DB
+    test_db = "data/test_recruiter.db"
+    init_db(test_db)
+    
+    resume_a = b"""
+    Alice Smith
+    alice@example.com
+    Skills: Python, Machine Learning
+    Experience: 5 years of experience
+    """
+    resume_b = b"""
+    Bob Jones
+    bob@example.com
+    Skills: Java, SQL
+    Experience: 2 years of experience
+    """
+    
+    # Call analyze_bulk endpoint using test DB path (we can use the default or test)
+    # The TestClient calls main:app which runs on DEFAULT_DB_PATH = "data/recruiter.db"
+    # Let's test the endpoint directly to ensure it works
+    response = client.post(
+        "/analyze_bulk",
+        data={"job_description": "Looking for a Python Machine Learning Engineer with 3+ years experience."},
+        files=[
+            ("resumes", ("alice.txt", io.BytesIO(resume_a), "text/plain")),
+            ("resumes", ("bob.txt", io.BytesIO(bob_jones_content := resume_b), "text/plain"))
+        ]
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert "job_id" in data
+    assert "rankings" in data
+    rankings = data["rankings"]
+    assert len(rankings) == 2
+    
+    # Alice should be ranked higher due to Python & ML match
+    assert rankings[0]["name"] == "Alice Smith"
+    assert rankings[1]["name"] == "Bob Jones"
+    
+    job_id = data["job_id"]
+    cand_a_id = rankings[0]["candidate_id"]
+    cand_b_id = rankings[1]["candidate_id"]
+    
+    # Test comparison endpoint
+    comp_response = client.get(
+        f"/compare?candidate_a_id={cand_a_id}&candidate_b_id={cand_b_id}&job_id={job_id}"
+    )
+    assert comp_response.status_code == 200
+    comp_data = comp_response.json()
+    assert "candidate_a" in comp_data
+    assert "candidate_b" in comp_data
+    assert "comparison_summary" in comp_data
+    assert "Alice Smith" in comp_data["comparison_summary"]
+    
+    # Clean up test DB if it was created
+    import os
+    if os.path.exists(test_db):
+        os.remove(test_db)
+
+def test_advanced_ai_endpoints():
+    # Test interview questions
+    response = client.post("/interview_questions", json={"skills": ["python", "sql", "react"]})
+    assert response.status_code == 200
+    data = response.json()
+    assert "questions" in data
+    assert "Python" in data["questions"]
+    assert "Beginner" in data["questions"]["Python"]
+    
+    # Test bullet point rewriter
+    response = client.post("/rewrite_bullet", json={"bullet": "wrote python code to fetch database details"})
+    assert response.status_code == 200
+    data = response.json()
+    assert "rewrites" in data
+    assert len(data["rewrites"]) == 3
+    
+    # Test skill gaps
+    response = client.post("/skill_gap", json={"missing_skills": ["aws", "docker"]})
+    assert response.status_code == 200
+    data = response.json()
+    assert "gaps" in data
+    assert "Aws" in data["gaps"]
+    assert "roadmap" in data["gaps"]["Aws"]
+    
+    # Test recruiter report
+    response = client.post("/recruiter_report", json={
+        "name": "David",
+        "education": "Bachelor",
+        "experience_years": 4.5,
+        "skills": ["python", "sql"],
+        "missing_skills": ["aws"]
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert "summary" in data
+    assert "suitability_rating" in data
+    assert "interview_focus_areas" in data
+
+def test_copilot_and_report_endpoints():
+    import io
+    
+    # Analyze bulk first to populate data context
+    resume_a = b"""
+    Charlie Vance
+    charlie@example.com
+    Skills: Python, AWS, Docker
+    Experience: 6 years of experience
+    Education: Master
+    """
+    
+    response = client.post(
+        "/analyze_bulk",
+        data={"job_description": "We need a Senior Python Developer with AWS and Docker skills."},
+        files=[
+            ("resumes", ("charlie.txt", io.BytesIO(resume_a), "text/plain"))
+        ]
+    )
+    assert response.status_code == 200
+    bulk_data = response.json()
+    job_id = bulk_data["job_id"]
+    cand_id = bulk_data["rankings"][0]["candidate_id"]
+    
+    # Test Copilot Chatbot queries
+    queries = [
+        "Why is Candidate A ranked first?",
+        "Which candidates know AWS?",
+        "Compare top candidates.",
+        "Show missing skills trends."
+    ]
+    
+    for q in queries:
+        copilot_resp = client.post("/copilot", json={"query": q, "job_id": job_id})
+        assert copilot_resp.status_code == 200
+        reply_data = copilot_resp.json()
+        assert "reply" in reply_data
+        assert len(reply_data["reply"]) > 0
+        
+    # Test download report endpoint
+    report_resp = client.get(f"/download_report?candidate_id={cand_id}&job_id={job_id}")
+    assert report_resp.status_code == 200
+    assert "text/html" in report_resp.headers["content-type"]
+    assert "Recruitment Scorecard" in report_resp.text
+    assert "Charlie Vance" in report_resp.text
+
+
+
+

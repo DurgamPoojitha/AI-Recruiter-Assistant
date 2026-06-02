@@ -65,3 +65,70 @@ class ATSAnalysisResponse(BaseModel):
     strength_breakdown: ResumeStrengthBreakdown
     parsed_resume: ParsedResume
 
+class CandidateRanking(BaseModel):
+    candidate_id: int = Field(..., description="Candidate ID in database")
+    name: str = Field(..., description="Candidate name")
+    match_score: float = Field(..., description="Candidate match score (0-100)")
+    ats_score: float = Field(..., description="Candidate ATS score (0-100)")
+    rank: int = Field(..., description="Candidate suitability rank position")
+
+class BulkAnalysisResponse(BaseModel):
+    job_id: int = Field(..., description="Created/Assigned Job ID in database")
+    rankings: List[CandidateRanking] = Field(default_factory=list, description="Ranked list of candidates")
+
+class CandidateComparisonDetail(BaseModel):
+    id: int
+    name: str
+    skills: List[str]
+    experience_years: float
+    education_level: str
+    ats_score: float
+    match_score: float
+
+class CompareResponse(BaseModel):
+    candidate_a: CandidateComparisonDetail
+    candidate_b: CandidateComparisonDetail
+    comparison_summary: str = Field(..., description="AI recruiter comparison summary details")
+
+class QuestionsRequest(BaseModel):
+    skills: List[str]
+
+class QuestionsResponse(BaseModel):
+    questions: Dict[str, Dict[str, List[str]]] = Field(..., description="Questions grouped by skill and difficulty level")
+
+class RewriteRequest(BaseModel):
+    bullet: str
+
+class RewriteResponse(BaseModel):
+    rewrites: List[str] = Field(..., description="Three stronger achievement-oriented bullet points")
+
+class SkillGapRequest(BaseModel):
+    missing_skills: List[str]
+
+class SkillGapResponse(BaseModel):
+    gaps: Dict[str, Dict[str, Any]] = Field(..., description="Roadmaps and course suggestions per missing skill")
+
+class RecruiterReportRequest(BaseModel):
+    name: str
+    education: str
+    experience_years: float
+    skills: List[str]
+    missing_skills: List[str]
+
+class RecruiterReportResponse(BaseModel):
+    summary: str
+    suitability_rating: str
+    interview_focus_areas: List[str]
+    core_technologies: List[str]
+    missing_technologies: List[str]
+
+class CopilotRequest(BaseModel):
+    query: str
+    job_id: Optional[int] = Field(None, description="Optional job ID context")
+
+class CopilotResponse(BaseModel):
+    reply: str
+
+
+
+

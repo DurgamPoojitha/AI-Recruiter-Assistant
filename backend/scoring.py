@@ -143,3 +143,65 @@ def calculate_match(
         matched_skills=matched_skills,
         missing_skills=missing_skills
     )
+
+def generate_comparison_summary(a: dict, b: dict) -> str:
+    """Generate a textual recruiter comparison summary between two candidates."""
+    higher_match = a if a["match_score"] > b["match_score"] else b
+    lower_match = b if a["match_score"] > b["match_score"] else a
+    diff_match = round(abs(a["match_score"] - b["match_score"]), 1)
+    
+    higher_exp = a if a["total_experience_years"] > b["total_experience_years"] else b
+    lower_exp = b if a["total_experience_years"] > b["total_experience_years"] else a
+    diff_exp = round(abs(a["total_experience_years"] - b["total_experience_years"]), 1)
+    
+    skills_a = set(a["skills"])
+    skills_b = set(b["skills"])
+    common_skills = skills_a.intersection(skills_b)
+    unique_a = skills_a.difference(skills_b)
+    unique_b = skills_b.difference(skills_a)
+    
+    summary_parts = [
+        f"Recruiter Comparison: {a['name']} vs {b['name']}.",
+        f"{higher_match['name']} is the stronger technical match overall with a suitability score of {higher_match['match_score']}% (compared to {lower_match['name']}'s {lower_match['match_score']}%)."
+    ]
+    
+    if diff_exp > 0:
+        summary_parts.append(
+            f"In terms of tenure, {higher_exp['name']} offers more years of professional experience ({higher_exp['total_experience_years']} years) compared to {lower_exp['name']} ({lower_exp['total_experience_years']} years)."
+        )
+    else:
+        summary_parts.append(
+            f"Both candidates have equal years of professional experience ({a['total_experience_years']} years)."
+        )
+        
+    summary_parts.append(
+        f"Education: {a['name']} holds a {a['highest_education_level']} degree, while {b['name']} holds a {b['highest_education_level']} degree."
+    )
+    
+    if common_skills:
+        summary_parts.append(
+            f"They share core skills including: {', '.join(list(common_skills)[:4]).title()}."
+        )
+    if unique_a:
+        summary_parts.append(
+            f"{a['name']} brings unique proficiency in: {', '.join(list(unique_a)[:3]).title()}."
+        )
+    if unique_b:
+        summary_parts.append(
+            f"{b['name']} brings unique proficiency in: {', '.join(list(unique_b)[:3]).title()}."
+        )
+        
+    # Recommendation
+    if diff_match < 5:
+        summary_parts.append(
+            f"Recommendation: Both candidates are highly competitive and within a close match margin. "
+            f"Suggest interviewing both to evaluate soft skills and culture fit."
+        )
+    else:
+        summary_parts.append(
+            f"Recommendation: Prioritize {higher_match['name']} due to the {diff_match}% match score advantage, "
+            f"especially if their unique skills align with critical role requirements."
+        )
+        
+    return " ".join(summary_parts)
+
