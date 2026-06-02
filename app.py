@@ -766,7 +766,7 @@ with tab_analytics:
             fig_skills_bar = px.bar(
                 df_skills_freq.head(10), x="Frequency", y="Skill",
                 orientation='h', title="Top 10 Technical Skills in Pipeline",
-                color="Frequency", color_continuous_scale=px.colors.sequential.Indigo
+                color="Frequency", color_continuous_scale="dense"
             )
             fig_skills_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(30, 41, 59, 0.3)', font_color="#f8fafc", coloraxis_showscale=False)
             st.plotly_chart(fig_skills_bar, use_container_width=True)
