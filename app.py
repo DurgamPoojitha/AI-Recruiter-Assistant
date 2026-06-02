@@ -714,6 +714,7 @@ with tab_analytics:
         
         # Load all scores for distributions
         conn = sqlite3.connect("data/recruiter.db")
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("""
             SELECT c.name, mr.final_score, mr.ats_score, c.skills
