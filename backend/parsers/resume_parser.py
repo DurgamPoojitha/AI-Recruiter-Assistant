@@ -1,6 +1,6 @@
 import re
 from typing import Dict, List, Any, Tuple, Optional
-from backend.schemas import ParsedResume
+from backend.services.embedding_services.domain import ParsedResume
 
 # Standard sections keywords mapping
 SECTION_KEYWORDS = {

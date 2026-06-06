@@ -138,3 +138,9 @@ FastAPI exposes endpoints structured into four core groups:
    ```
 3. **Multi-Threading / Async I/O**: FastAPI handles multiple file uploads concurrently using `UploadFile` which is backed by async SpooledTemporaryFiles. This prevents CPU blocks during heavy resume parses.
 4. **Hugging Face Model Offline Mode**: Pre-download the Hugging Face weights into your container environment during the build step, and set `HF_HUB_DISABLE_SYMLINKS_WARNING=1` to optimize cold start performance in serverless platforms.
+
+## Phase 1: Foundation Hardening Updates
+- **Clean Architecture:** Refactored to use Repositories, Services, Models, and core configurations.
+- **Performance Optimization:** Introduced `lru_cache` and Singleton patterns for ML Embedding inference.
+- **Robustness:** Added structured global exception handling and an Alembic migration system structure.
+- **Testing:** Moved tests to `tests/` directory and added architecture validation tests.

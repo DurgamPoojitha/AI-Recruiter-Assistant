@@ -7,23 +7,27 @@ import plotly.graph_objects as go
 from backend.utils import extract_text_from_file, preprocess_text, load_skills
 from backend.parsers.resume_parser import parse_resume
 from backend.parsers.jd_parser import parse_jd
-from backend.scoring import calculate_match, generate_comparison_summary
+from backend.services.matching_service import calculate_match, generate_comparison_summary
 from backend.parsers.ats_analyzer import analyze_resume_ats
-from backend.database import (
+from backend.repositories import (
     init_db,
     insert_job,
     insert_candidate,
     insert_match_result,
     get_job_rankings,
-    get_candidate_details
+    get_candidate_details,
+    get_pipeline_summary,
+    update_candidate_status,
+    add_candidate_note,
+    get_candidate_notes
 )
-from backend.advanced_ai import (
+from backend.services.ai_service import (
     generate_interview_questions,
     rewrite_bullet_point,
     analyze_skill_gaps,
     generate_recruiter_report
 )
-from backend.copilot import answer_copilot_query
+from backend.services.copilot_service import answer_copilot_query
 from backend.report_generator import generate_candidate_html_report
 
 # Initialize database
@@ -125,10 +129,11 @@ if 'chat_history' not in st.session_state:
 st.title("🤖 AI Recruiter Assistant")
 st.markdown("Smart Resume-to-Job Matching, ATS Optimization, Bulk Workflows & Recruiter Analytics.")
 
-tab_single_match, tab_single_ats, tab_recruiter_workflow, tab_advanced_ai, tab_analytics, tab_copilot = st.tabs([
+tab_single_match, tab_single_ats, tab_recruiter_workflow, tab_ats_pipeline, tab_advanced_ai, tab_analytics, tab_copilot = st.tabs([
     "🎯 Single Job Matcher", 
     "📊 Single ATS Optimizer", 
     "💼 Recruiter Workflow (Rank & Compare)",
+    "🚦 ATS Pipeline Dashboard",
     "💡 Advanced AI Tools",
     "📈 Analytics Dashboard",
     "💬 Recruiter Copilot"
@@ -829,3 +834,66 @@ with tab_copilot:
             with st.chat_message("assistant"):
                 st.markdown(reply)
                 st.rerun()
+
+# --- TAB: ATS Pipeline Dashboard (Phase 2) ---
+with tab_ats_pipeline:
+    st.subheader("🚦 Enterprise ATS Pipeline Dashboard")
+    st.write("Drag and drop is simulated via status selection. View candidates across the 8 recruitment stages.")
+    
+    if st.session_state['job_id']:
+        job_id = st.session_state['job_id']
+        pipeline = get_pipeline_summary(job_id)
+        
+        stages = ["Applied", "Screening", "Interview Scheduled", "Technical Round", "HR Round", "Offer", "Hired", "Rejected"]
+        
+        # Display KanBan columns
+        cols = st.columns(len(stages))
+        for idx, stage in enumerate(stages):
+            with cols[idx]:
+                st.markdown(f"**{stage}** ({len(pipeline.get(stage, []))})")
+                for cand in pipeline.get(stage, []):
+                    st.markdown(
+                        f"""<div class='metric-card' style='padding:10px; margin-bottom:10px; text-align:left; border-top:3px solid #6366f1;'>
+                        <strong>{cand['name']}</strong><br>
+                        <span style='font-size:0.8rem; color:#94a3b8;'>Match: {cand['match_score']}%</span>
+                        </div>""", 
+                        unsafe_allow_html=True
+                    )
+                    
+        st.markdown("---")
+        st.markdown("### 📝 Manage Candidate Status & Notes")
+        
+        all_candidates = st.session_state['rankings']
+        if all_candidates:
+            m_col1, m_col2 = st.columns(2)
+            with m_col1:
+                selected_cand = st.selectbox(
+                    "Select Candidate:",
+                    options=all_candidates,
+                    format_func=lambda x: f"{x['name']} (Rank {x['rank']})"
+                )
+                if selected_cand:
+                    new_status = st.selectbox("Update Status:", stages, index=0)
+                    if st.button("Update Status"):
+                        update_candidate_status(selected_cand['candidate_id'], job_id, new_status, recruiter_id=1) # dummy recruiter 1
+                        st.success(f"Status updated to {new_status}!")
+                        st.rerun()
+            
+            with m_col2:
+                if selected_cand:
+                    st.markdown("**Recruiter Notes:**")
+                    notes = get_candidate_notes(selected_cand['candidate_id'])
+                    if notes:
+                        for n in notes:
+                            st.info(f"**{n['recruiter_name'] or 'Recruiter'}:** {n['note_text']}  \n*{n['created_at']}*")
+                    else:
+                        st.write("No notes yet.")
+                        
+                    new_note = st.text_area("Add a Note:")
+                    if st.button("Save Note"):
+                        if new_note:
+                            add_candidate_note(selected_cand['candidate_id'], 1, new_note)
+                            st.success("Note added!")
+                            st.rerun()
+    else:
+        st.info("Upload candidates and run bulk analysis in Tab 3 to view the ATS pipeline.")

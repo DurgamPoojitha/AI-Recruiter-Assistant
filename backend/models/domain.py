@@ -129,6 +129,31 @@ class CopilotRequest(BaseModel):
 class CopilotResponse(BaseModel):
     reply: str
 
+class RecruiterCreate(BaseModel):
+    name: str
+    email: str
+    role: str = Field("Recruiter", description="Role of the user (e.g., Recruiter, Hiring Manager)")
 
+class CandidateStatusUpdate(BaseModel):
+    status: str = Field(..., description="New ATS pipeline status")
+    recruiter_id: int = Field(..., description="ID of the recruiter making the change")
 
+class CandidateNoteCreate(BaseModel):
+    recruiter_id: int
+    note_text: str
+
+class CandidateTagAdd(BaseModel):
+    tag_name: str
+
+class CandidateAssignmentCreate(BaseModel):
+    job_id: int
+    recruiter_id: int
+
+class ActivityLogResponse(BaseModel):
+    id: int
+    entity_type: str
+    entity_id: int
+    action: str
+    performed_by: int
+    timestamp: Any
 

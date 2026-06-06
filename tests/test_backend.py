@@ -4,7 +4,7 @@ from backend.main import app
 from backend.utils import preprocess_text, extract_skills
 from backend.parsers.resume_parser import parse_resume
 from backend.parsers.jd_parser import parse_jd
-from backend.scoring import calculate_match
+from backend.services.matching_service import calculate_match
 
 client = TestClient(app)
 
@@ -149,7 +149,7 @@ def test_analyze_ats_endpoint():
 
 def test_database_and_bulk_flow():
     import io
-    from backend.database import init_db
+    from backend.repositories import init_db
     
     # Initialize a test DB
     test_db = "data/test_recruiter.db"

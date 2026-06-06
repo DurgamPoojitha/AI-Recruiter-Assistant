@@ -82,8 +82,8 @@ def answer_copilot_query(query: str, job_id: int = None, db_path: str = "data/re
             """, (job_id,))
             rows = cursor.fetchall()
             if len(rows) >= 2:
-                from backend.scoring import generate_comparison_summary
-                from backend.database import get_candidate_details
+                from backend.services.matching_service import generate_comparison_summary
+                from backend.repositories import get_candidate_details
                 
                 a_details = get_candidate_details(rows[0]["id"], job_id, db_path)
                 b_details = get_candidate_details(rows[1]["id"], job_id, db_path)

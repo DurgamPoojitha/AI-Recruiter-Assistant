@@ -1,6 +1,6 @@
 import re
 from typing import List, Dict, Any
-from backend.schemas import ParsedResume, ResumeStrengthBreakdown, ATSAnalysisResponse
+from backend.services.embedding_services.domain import ParsedResume, ResumeStrengthBreakdown, ATSAnalysisResponse
 
 # Keywords indicative of quantifiable results and leadership impact
 ACHIEVEMENT_KEYWORDS = [
