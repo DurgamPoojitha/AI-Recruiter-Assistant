@@ -901,5 +901,42 @@ with tab_ats_pipeline:
                             add_candidate_note(selected_cand['candidate_id'], 1, new_note)
                             st.success("Note added!")
                             st.rerun()
+                            
+            st.markdown("---")
+            st.markdown("### 📧 AI Email Automation")
+            st.write("Generate personalized communication based on candidate ATS context.")
+            
+            if selected_cand:
+                from backend.services.communication_service import EmailType
+                from backend.api.routes.communication import draft_email, EmailDraftRequest, send_email, SendEmailRequest
+                
+                e_col1, e_col2 = st.columns([1, 2])
+                with e_col1:
+                    email_type_str = st.selectbox("Select Email Type:", [e.value for e in EmailType])
+                    email_context = st.text_area("Additional Context (e.g., 'Include calendar link'):")
+                    
+                    if st.button("Generate Email Draft"):
+                        with st.spinner("AI is crafting the perfect email..."):
+                            try:
+                                draft_payload = EmailDraftRequest(email_type=EmailType(email_type_str), context=email_context)
+                                draft_res = draft_email(selected_cand['candidate_id'], job_id, draft_payload)
+                                st.session_state['current_email_subject'] = draft_res.subject
+                                st.session_state['current_email_body'] = draft_res.body
+                            except Exception as e:
+                                st.error(f"Failed to draft email: {e}")
+                
+                with e_col2:
+                    if 'current_email_subject' in st.session_state:
+                        final_subject = st.text_input("Subject Line:", st.session_state['current_email_subject'])
+                        final_body = st.text_area("Email Body:", st.session_state['current_email_body'], height=250)
+                        
+                        if st.button("🚀 Send Email (Simulated)"):
+                            try:
+                                # For demonstration, we assume a mock email like "candidate@example.com"
+                                send_payload = SendEmailRequest(subject=final_subject, body=final_body, to_email="candidate@example.com")
+                                send_email(send_payload)
+                                st.success("Email successfully dispatched via provider!")
+                            except Exception as e:
+                                st.error(f"Failed to send email: {e}")
     else:
         st.info("Upload candidates and run bulk analysis in Tab 3 to view the ATS pipeline.")

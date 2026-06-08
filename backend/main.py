@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.core.database import init_db
 from backend.core.exceptions import AppError, app_error_handler, global_exception_handler
 from backend.core.logging import logger
-from backend.api.routes import matches, copilot, ats
+from backend.api.routes import matches, copilot, ats, communication
 
 app = FastAPI(title="Enterprise AI Recruiter API")
 
@@ -27,6 +27,7 @@ app.add_exception_handler(Exception, global_exception_handler)
 app.include_router(matches.router, tags=["Matches & ATS"])
 app.include_router(copilot.router, tags=["AI Copilot"])
 app.include_router(ats.router, prefix="/ats", tags=["ATS Pipeline"])
+app.include_router(communication.router, prefix="/communication", tags=["Communication"])
 
 @app.get("/")
 def read_root():
