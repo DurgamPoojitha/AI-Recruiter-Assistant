@@ -28,6 +28,7 @@ from backend.services.ai_service import (
     generate_recruiter_report
 )
 from backend.services.copilot_service import answer_copilot_query
+from backend.services.rag_service import get_rag_service
 from backend.report_generator import generate_candidate_html_report
 
 # Initialize database
@@ -315,6 +316,10 @@ with tab_recruiter_workflow:
                         
                         # Store in Database
                         candidate_id = insert_candidate(parsed_resume, raw_text=raw_resume_text, filename=resume.name)
+                        
+                        # Index candidate in RAG FAISS Vector Store
+                        get_rag_service().index_candidate_resume(candidate_id, parsed_resume.name, raw_resume_text)
+                        
                         insert_match_result(
                             candidate_id=candidate_id,
                             job_id=job_id,
@@ -827,7 +832,8 @@ with tab_copilot:
             st.markdown(copilot_query)
             
         with st.spinner("Retrieving database details..."):
-            reply = answer_copilot_query(copilot_query, st.session_state['job_id'])
+            # Use a static session ID for this user session
+            reply = answer_copilot_query(copilot_query, st.session_state['job_id'], session_id="streamlit_user_session")
             
             # Append Assistant response
             st.session_state['chat_history'].append({"role": "assistant", "content": reply})

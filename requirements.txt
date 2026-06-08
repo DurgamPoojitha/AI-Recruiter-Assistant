@@ -9,3 +9,9 @@ python-multipart==0.0.9
 streamlit==1.35.0
 plotly==5.22.0
 alembic==1.13.1
+langchain
+langchain-community
+langchain-openai
+faiss-cpu
+python-dotenv
+langchain-huggingface

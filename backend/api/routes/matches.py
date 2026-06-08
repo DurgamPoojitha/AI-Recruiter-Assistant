@@ -26,6 +26,7 @@ from backend.repositories import (
     get_candidate_details
 )
 from backend.services.ai_service import generate_interview_questions
+from backend.services.rag_service import get_rag_service
 from backend.report_generator import generate_candidate_html_report
 from backend.core.exceptions import AppError
 
@@ -118,6 +119,10 @@ async def analyze_bulk(
             ats_results = analyze_resume_ats(raw_resume_text, parsed_resume, resume.filename)
             
             candidate_id = insert_candidate(parsed_resume, raw_text=raw_resume_text, filename=resume.filename)
+            
+            # Index candidate in RAG FAISS Vector Store
+            get_rag_service().index_candidate_resume(candidate_id, parsed_resume.name, raw_resume_text)
+            
             insert_match_result(
                 candidate_id=candidate_id,
                 job_id=job_id,

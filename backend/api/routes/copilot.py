@@ -64,7 +64,8 @@ def get_recruiter_report(request: RecruiterReportRequest):
 @router.post("/copilot", response_model=CopilotResponse)
 def run_copilot(request: CopilotRequest):
     try:
-        reply = answer_copilot_query(request.query, request.job_id)
+        session_id = request.session_id if hasattr(request, 'session_id') else "default"
+        reply = answer_copilot_query(request.query, request.job_id, session_id)
         return CopilotResponse(reply=reply)
     except Exception as e:
         raise AppError(f"Copilot query failed: {str(e)}", 500)

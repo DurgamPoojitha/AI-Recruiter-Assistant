@@ -125,6 +125,7 @@ class RecruiterReportResponse(BaseModel):
 class CopilotRequest(BaseModel):
     query: str
     job_id: Optional[int] = Field(None, description="Optional job ID context")
+    session_id: str = Field("default", description="Session ID for conversational memory")
 
 class CopilotResponse(BaseModel):
     reply: str
