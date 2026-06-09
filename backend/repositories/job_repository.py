@@ -12,3 +12,11 @@ class JobRepository(BaseRepository):
         conn.commit()
         conn.close()
         return job_id
+
+    def get_job_description(self, job_id: int) -> str:
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT description FROM jobs WHERE id = ?", (job_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return row["description"] if row else ""

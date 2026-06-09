@@ -6,11 +6,17 @@ from backend.repositories.match_repository import MatchRepository
 def insert_job(title: str, description: str) -> int:
     return JobRepository().insert_job(title, description)
 
+def get_job_description(job_id: int) -> str:
+    return JobRepository().get_job_description(job_id)
+
 def insert_candidate(parsed_resume, raw_text: str, filename: str) -> int:
     return CandidateRepository().insert_candidate(parsed_resume, raw_text, filename)
 
 def get_candidate_details(candidate_id: int, job_id: int):
     return CandidateRepository().get_candidate_details(candidate_id, job_id)
+
+def get_candidates_for_job(job_id: int):
+    return CandidateRepository().get_candidates_for_job(job_id)
 
 def insert_match_result(
     candidate_id: int, 
@@ -25,6 +31,9 @@ def insert_match_result(
     return MatchRepository().insert_match_result(
         candidate_id, job_id, scoring, ats_score, strengths, weaknesses, recommendation, strength_breakdown
     )
+
+def update_match_result(candidate_id: int, job_id: int, scoring):
+    return MatchRepository().update_match_result(candidate_id, job_id, scoring)
 
 def get_job_rankings(job_id: int):
     return MatchRepository().get_job_rankings(job_id)

@@ -23,7 +23,10 @@ from backend.repositories import (
     insert_candidate, 
     insert_match_result, 
     get_job_rankings, 
-    get_candidate_details
+    get_candidate_details,
+    get_job_description,
+    get_candidates_for_job,
+    update_match_result
 )
 from backend.services.ai_service import generate_interview_questions
 from backend.services.rag_service import get_rag_service
@@ -213,3 +216,62 @@ def download_report(candidate_id: int, job_id: int):
         return HTMLResponse(content=html_report, media_type="text/html")
     except Exception as e:
         raise AppError(f"Failed to generate scorecard report: {str(e)}", 500)
+
+from pydantic import BaseModel
+
+class ScoringWeights(BaseModel):
+    semantic: float = 0.40
+    skill: float = 0.30
+    experience: float = 0.20
+    education: float = 0.10
+
+@router.post("/jobs/{job_id}/recalculate", response_model=BulkAnalysisResponse)
+def recalculate_job_matches(job_id: int, weights: ScoringWeights):
+    try:
+        job_description = get_job_description(job_id)
+        if not job_description:
+            raise AppError("Job not found", 404)
+            
+        parsed_jd = parse_jd(job_description, PREDEFINED_SKILLS)
+        clean_jd = preprocess_text(job_description)
+        
+        candidates = get_candidates_for_job(job_id)
+        if not candidates:
+            raise AppError("No candidates found for this job", 404)
+            
+        weight_dict = weights.dict()
+        
+        for cand in candidates:
+            parsed_resume = parse_resume(cand["raw_text"], PREDEFINED_SKILLS)
+            clean_resume = preprocess_text(cand["raw_text"])
+            
+            scoring_details = calculate_match(
+                resume=parsed_resume,
+                jd=parsed_jd,
+                clean_resume_text=clean_resume,
+                clean_jd_text=clean_jd,
+                weights=weight_dict
+            )
+            
+            update_match_result(
+                candidate_id=cand["id"],
+                job_id=job_id,
+                scoring=scoring_details
+            )
+            
+        # Return updated rankings
+        rank_records = get_job_rankings(job_id)
+        rankings = [
+            CandidateRanking(
+                candidate_id=r["candidate_id"],
+                name=r["name"],
+                match_score=r["match_score"],
+                ats_score=r["ats_score"],
+                rank=r["rank"]
+            )
+            for r in rank_records
+        ]
+        return BulkAnalysisResponse(job_id=job_id, rankings=rankings)
+        
+    except Exception as e:
+        raise AppError(f"Recalculation failed: {str(e)}", 500)

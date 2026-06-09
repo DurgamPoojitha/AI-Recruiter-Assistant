@@ -77,3 +77,16 @@ class CandidateRepository(BaseRepository):
             "match_score": row["match_score"] or 0.0,
             "ats_score": row["ats_score"] or 0.0
         }
+
+    def get_candidates_for_job(self, job_id: int) -> list:
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+        SELECT c.id, c.raw_text
+        FROM candidates c
+        JOIN match_results mr ON mr.candidate_id = c.id
+        WHERE mr.job_id = ?
+        """, (job_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [{"id": row["id"], "raw_text": row["raw_text"]} for row in rows]

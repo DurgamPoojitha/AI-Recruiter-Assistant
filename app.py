@@ -9,6 +9,7 @@ from backend.parsers.resume_parser import parse_resume
 from backend.parsers.jd_parser import parse_jd
 from backend.services.matching_service import calculate_match, generate_comparison_summary
 from backend.parsers.ats_analyzer import analyze_resume_ats
+from backend.api.routes.matches import recalculate_job_matches, ScoringWeights
 from backend.repositories import (
     init_db,
     insert_job,
@@ -342,6 +343,36 @@ with tab_recruiter_workflow:
             
     # Show rankings table and comparison tool if rankings exist
     if st.session_state['rankings']:
+        st.markdown("---")
+        st.markdown("### 🎛️ Dynamic Scoring Engine")
+        st.write("Adjust the importance of each metric and instantly recalibrate the pipeline.")
+        
+        col_w1, col_w2, col_w3, col_w4 = st.columns(4)
+        w_sem = col_w1.slider("Semantic Match", 0, 100, 40)
+        w_skill = col_w2.slider("Skills Match", 0, 100, 30)
+        w_exp = col_w3.slider("Experience Match", 0, 100, 20)
+        w_edu = col_w4.slider("Education Match", 0, 100, 10)
+        
+        if st.button("🔄 Recalibrate Pipeline"):
+            total_w = w_sem + w_skill + w_exp + w_edu
+            if total_w != 100:
+                st.warning(f"Weights must sum to 100. Current sum: {total_w}")
+            else:
+                with st.spinner("Recalculating match scores..."):
+                    try:
+                        weights = ScoringWeights(
+                            semantic=w_sem/100,
+                            skill=w_skill/100,
+                            experience=w_exp/100,
+                            education=w_edu/100
+                        )
+                        response = recalculate_job_matches(st.session_state['job_id'], weights)
+                        st.session_state['rankings'] = [r.dict() for r in response.rankings]
+                        st.success("Pipeline recalibrated successfully!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Recalibration failed: {str(e)}")
+
         st.markdown("### 📋 Ranked Candidate Shortlist")
         
         df_rankings = pd.DataFrame(st.session_state['rankings'])
@@ -415,6 +446,37 @@ with tab_recruiter_workflow:
                     r2.markdown(f"<div style='text-align:center; font-size:1.1rem;'>{val_a}</div>", unsafe_allow_html=True)
                     r3.markdown(f"<div style='text-align:center; font-size:1.1rem;'>{val_b}</div>", unsafe_allow_html=True)
                     st.markdown("<hr style='margin:5px 0; opacity:0.1;'>", unsafe_allow_html=True)
+                
+                # Plotly Radar Chart for Explainability
+                st.markdown("#### 📊 Candidate Skills & Experience Radar")
+                
+                # Need to fetch the 4 sub-scores for both candidates. Since we only stored final_score in get_candidate_details originally, we need to fetch them from the db directly for the radar.
+                conn = sqlite3.connect("data/recruiter.db")
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("SELECT semantic_score, skill_score, experience_score, education_score FROM match_results WHERE candidate_id = ? AND job_id = ?", (cand_a['candidate_id'], job_id))
+                a_scores = cursor.fetchone()
+                cursor.execute("SELECT semantic_score, skill_score, experience_score, education_score FROM match_results WHERE candidate_id = ? AND job_id = ?", (cand_b['candidate_id'], job_id))
+                b_scores = cursor.fetchone()
+                conn.close()
+                
+                if a_scores and b_scores:
+                    categories = ['Semantic', 'Skills', 'Experience', 'Education']
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatterpolar(
+                        r=[a_scores['semantic_score'], a_scores['skill_score'], a_scores['experience_score'], a_scores['education_score']],
+                        theta=categories,
+                        fill='toself',
+                        name=a_details['name']
+                    ))
+                    fig.add_trace(go.Scatterpolar(
+                        r=[b_scores['semantic_score'], b_scores['skill_score'], b_scores['experience_score'], b_scores['education_score']],
+                        theta=categories,
+                        fill='toself',
+                        name=b_details['name']
+                    ))
+                    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), showlegend=True)
+                    st.plotly_chart(fig, use_container_width=True)
                 
                 # Compare skills lists
                 r1, r2, r3 = st.columns([1, 1, 1])

@@ -45,6 +45,33 @@ class MatchRepository(BaseRepository):
         conn.commit()
         conn.close()
 
+    def update_match_result(
+        self,
+        candidate_id: int, 
+        job_id: int, 
+        scoring: Any
+    ):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+        UPDATE match_results 
+        SET semantic_score = ?, skill_score = ?, experience_score = ?, 
+            education_score = ?, final_score = ?, explanation = ?
+        WHERE candidate_id = ? AND job_id = ?
+        """, (
+            scoring.semantic_score,
+            scoring.skill_score,
+            scoring.experience_score,
+            scoring.education_score,
+            scoring.final_score,
+            scoring.explanation,
+            candidate_id,
+            job_id
+        ))
+        conn.commit()
+        conn.close()
+
     def get_job_rankings(self, job_id: int) -> List[Dict[str, Any]]:
         conn = self._get_connection()
         cursor = conn.cursor()

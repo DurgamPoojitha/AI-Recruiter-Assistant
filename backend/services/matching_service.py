@@ -20,7 +20,8 @@ class MatchingService:
         resume: ParsedResume,
         jd: ParsedJD,
         clean_resume_text: str,
-        clean_jd_text: str
+        clean_jd_text: str,
+        weights: dict = None
     ) -> ScoringExplanation:
         """
         Calculate the overall suitabilty score using the weighted formula.
@@ -84,18 +85,21 @@ class MatchingService:
         education_score = round(education_score, 2)
         
         # 5. Final Score
+        if weights is None:
+            weights = {"semantic": 0.40, "skill": 0.30, "experience": 0.20, "education": 0.10}
+            
         final_score = (
-            0.40 * semantic_score +
-            0.30 * skill_score +
-            0.20 * experience_score +
-            0.10 * education_score
+            weights.get("semantic", 0.40) * semantic_score +
+            weights.get("skill", 0.30) * skill_score +
+            weights.get("experience", 0.20) * experience_score +
+            weights.get("education", 0.10) * education_score
         )
         final_score = round(final_score, 2)
         
         # 6. Explanation
         explanation_parts = [
-            f"Overall suitability match is {final_score}%. This is determined by combining semantic fit (40%), "
-            f"skills overlap (30%), experience alignment (20%), and academic qualifications (10%)."
+            f"Overall suitability match is {final_score}%. This is determined by combining semantic fit ({int(weights.get('semantic', 0.40)*100)}%), "
+            f"skills overlap ({int(weights.get('skill', 0.30)*100)}%), experience alignment ({int(weights.get('experience', 0.20)*100)}%), and academic qualifications ({int(weights.get('education', 0.10)*100)}%)."
         ]
         
         if semantic_score >= 80:
