@@ -3,14 +3,14 @@ from backend.repositories.job_repository import JobRepository
 from backend.repositories.candidate_repository import CandidateRepository
 from backend.repositories.match_repository import MatchRepository
 
-def insert_job(title: str, description: str) -> int:
-    return JobRepository().insert_job(title, description)
+def insert_job(title: str, description: str, org_id: int = 1) -> int:
+    return JobRepository().insert_job(title, description, org_id)
 
 def get_job_description(job_id: int) -> str:
     return JobRepository().get_job_description(job_id)
 
-def insert_candidate(parsed_resume, raw_text: str, filename: str) -> int:
-    return CandidateRepository().insert_candidate(parsed_resume, raw_text, filename)
+def insert_candidate(parsed_resume, raw_text: str, filename: str, org_id: int = 1) -> int:
+    return CandidateRepository().insert_candidate(parsed_resume, raw_text, filename, org_id)
 
 def get_candidate_details(candidate_id: int, job_id: int):
     return CandidateRepository().get_candidate_details(candidate_id, job_id)

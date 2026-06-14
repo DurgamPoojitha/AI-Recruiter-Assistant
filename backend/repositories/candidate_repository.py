@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 from backend.repositories.base import BaseRepository
 
 class CandidateRepository(BaseRepository):
-    def insert_candidate(self, parsed_resume: Any, raw_text: str, filename: str) -> int:
+    def insert_candidate(self, parsed_resume: Any, raw_text: str, filename: str, org_id: int) -> int:
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -16,8 +16,8 @@ class CandidateRepository(BaseRepository):
         cursor.execute("""
         INSERT INTO candidates (
             name, email, phone, skills, education, experience, certifications, 
-            total_experience_years, highest_education_level, raw_text, filename
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            total_experience_years, highest_education_level, raw_text, filename, org_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             parsed_resume.name,
             parsed_resume.email,
@@ -29,7 +29,8 @@ class CandidateRepository(BaseRepository):
             parsed_resume.total_experience_years,
             parsed_resume.highest_education_level,
             raw_text,
-            filename
+            filename,
+            org_id
         ))
         candidate_id = cursor.lastrowid
         conn.commit()

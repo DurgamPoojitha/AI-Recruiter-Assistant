@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse
 from typing import List
 import sqlite3
@@ -32,12 +32,19 @@ from backend.services.ai_service import generate_interview_questions
 from backend.services.rag_service import get_rag_service
 from backend.report_generator import generate_candidate_html_report
 from backend.core.exceptions import AppError
+from backend.core.rate_limiter import limiter
+from backend.api.dependencies import RoleChecker
 
 router = APIRouter()
 PREDEFINED_SKILLS = load_skills()
 
-@router.post("/analyze", response_model=MatchAnalysisResponse)
+# Only Recruiters and Admins can analyze resumes
+allow_recruiter = RoleChecker(["Recruiter", "Admin"])
+
+@router.post("/analyze", response_model=MatchAnalysisResponse, dependencies=[Depends(allow_recruiter)])
+@limiter.limit("5/minute")
 async def analyze_resume(
+    request: Request,
     resume: UploadFile = File(...),
     job_description: str = Form(...)
 ):
@@ -81,8 +88,9 @@ async def analyze_resume(
     except Exception as e:
         raise AppError(f"Failed to analyze resume: {str(e)}", 500)
 
-@router.post("/analyze_ats", response_model=ATSAnalysisResponse)
-async def analyze_ats(resume: UploadFile = File(...)):
+@router.post("/analyze_ats", response_model=ATSAnalysisResponse, dependencies=[Depends(allow_recruiter)])
+@limiter.limit("10/minute")
+async def analyze_ats(request: Request, resume: UploadFile = File(...)):
     try:
         file_bytes = await resume.read()
         raw_resume_text = extract_text_from_file(file_bytes, resume.filename)
@@ -92,8 +100,10 @@ async def analyze_ats(resume: UploadFile = File(...)):
     except Exception as e:
         raise AppError(f"Failed to analyze resume ATS: {str(e)}", 500)
 
-@router.post("/analyze_bulk", response_model=BulkAnalysisResponse)
+@router.post("/analyze_bulk", response_model=BulkAnalysisResponse, dependencies=[Depends(allow_recruiter)])
+@limiter.limit("3/minute")
 async def analyze_bulk(
+    request: Request,
     resumes: List[UploadFile] = File(...),
     job_description: str = Form(...)
 ):

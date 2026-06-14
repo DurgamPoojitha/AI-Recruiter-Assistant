@@ -31,13 +31,56 @@ from backend.services.ai_service import (
 from backend.services.copilot_service import answer_copilot_query
 from backend.services.rag_service import get_rag_service
 from backend.report_generator import generate_candidate_html_report
+from backend.core.auth_component import get_auth_token_from_hash
+from backend.api.dependencies import verify_jwt
+import os
 
 # Initialize database
 init_db()
 
+# --- Auth0 Setup ---
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")
+AUTH0_API_AUDIENCE = os.getenv("AUTH0_API_AUDIENCE")
+LOGIN_URL = f"https://{AUTH0_DOMAIN}/authorize?response_type=token&client_id={AUTH0_CLIENT_ID}&redirect_uri=http://localhost:8501/&audience={AUTH0_API_AUDIENCE}&scope=openid profile email"
+
+get_auth_token_from_hash()
+
+st.sidebar.markdown("### 🔒 Authentication")
+if "auth0_token" not in st.session_state:
+    st.sidebar.markdown(f'<a href="{LOGIN_URL}" target="_self"><button style="width:100%; padding:10px; background-color:#4f46e5; color:white; border:none; border-radius:5px; cursor:pointer;">Login with Auth0</button></a>', unsafe_allow_html=True)
+    st.sidebar.warning("Please login to access enterprise features.")
+else:
+    token = st.session_state["auth0_token"]
+    try:
+        user_payload = verify_jwt(token)
+        roles = user_payload.get(f"{AUTH0_API_AUDIENCE}/roles", [])
+        if not roles:
+            roles = user_payload.get("roles", ["Recruiter"]) # Fallback MVP role
+        org_id = user_payload.get(f"{AUTH0_API_AUDIENCE}/org_id", 1)
+        
+        st.session_state["user"] = {"roles": roles if isinstance(roles, list) else [roles], "org_id": org_id, "sub": user_payload.get("sub")}
+        st.sidebar.success(f"Logged in!")
+        st.sidebar.write(f"**Roles:** {', '.join(st.session_state['user']['roles'])}")
+        st.sidebar.write(f"**Org ID:** {org_id}")
+        
+        if st.sidebar.button("Logout"):
+            del st.session_state["auth0_token"]
+            st.rerun()
+    except Exception as e:
+        st.sidebar.error("Session expired or invalid. Please login again.")
+        if st.sidebar.button("Clear Session"):
+            del st.session_state["auth0_token"]
+            st.rerun()
+
 # --- Dashboard Configuration ---
 st.set_page_config(page_title="AI Recruiter | Matcher, ATS & Analytics Suite", page_icon="🤖", layout="wide")
 
+if "user" not in st.session_state:
+    st.info("Please log in via the sidebar to access the Enterprise AI Recruiter Platform.")
+    st.stop()
+
+st.title("🤖 AI Recruiter Assistant (Enterprise Phase 6)")
 # Modern UI Styling with Dark / Neon Accents
 st.markdown("""
     <style>
@@ -298,7 +341,9 @@ with tab_recruiter_workflow:
                     job_title = job_desc_bulk.strip().split("\n")[0][:60]
                     if not job_title:
                         job_title = "Position Requirements Match"
-                    job_id = insert_job(job_title, job_desc_bulk)
+                    
+                    org_id = st.session_state.get("user", {}).get("org_id", 1)
+                    job_id = insert_job(job_title, job_desc_bulk, org_id)
                     st.session_state['job_id'] = job_id
                     
                     parsed_jd = parse_jd(job_desc_bulk, PREDEFINED_SKILLS)
@@ -316,7 +361,7 @@ with tab_recruiter_workflow:
                         ats_results = analyze_resume_ats(raw_resume_text, parsed_resume, resume.name)
                         
                         # Store in Database
-                        candidate_id = insert_candidate(parsed_resume, raw_text=raw_resume_text, filename=resume.name)
+                        candidate_id = insert_candidate(parsed_resume, raw_text=raw_resume_text, filename=resume.name, org_id=org_id)
                         
                         # Index candidate in RAG FAISS Vector Store
                         get_rag_service().index_candidate_resume(candidate_id, parsed_resume.name, raw_resume_text)

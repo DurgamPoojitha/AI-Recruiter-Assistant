@@ -5,6 +5,11 @@ from backend.core.exceptions import AppError, app_error_handler, global_exceptio
 from backend.core.logging import logger
 from backend.api.routes import matches, copilot, ats, communication
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from backend.core.rate_limiter import limiter
+
 app = FastAPI(title="Enterprise AI Recruiter API")
 
 # Initialize database
@@ -18,10 +23,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
 # Exception Handlers
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(Exception, global_exception_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Routers
 app.include_router(matches.router, tags=["Matches & ATS"])

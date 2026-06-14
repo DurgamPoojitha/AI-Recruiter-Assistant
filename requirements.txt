@@ -15,3 +15,7 @@ langchain-openai
 faiss-cpu
 python-dotenv
 langchain-huggingface
+
+slowapi
+PyJWT
+cryptography

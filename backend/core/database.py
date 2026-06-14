@@ -19,13 +19,23 @@ def init_db(db_path: str = settings.DEFAULT_DB_PATH):
     conn = get_connection(db_path)
     cursor = conn.cursor()
     
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS organizations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
     # 1. Jobs Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS jobs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id INTEGER,
         title TEXT,
         description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (org_id) REFERENCES organizations(id)
     )
     """)
     
@@ -33,6 +43,7 @@ def init_db(db_path: str = settings.DEFAULT_DB_PATH):
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS candidates (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id INTEGER,
         name TEXT,
         email TEXT,
         phone TEXT,
@@ -44,7 +55,8 @@ def init_db(db_path: str = settings.DEFAULT_DB_PATH):
         highest_education_level TEXT,
         raw_text TEXT,
         filename TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (org_id) REFERENCES organizations(id)
     )
     """)
     
@@ -80,10 +92,12 @@ def init_db(db_path: str = settings.DEFAULT_DB_PATH):
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS recruiters (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        org_id INTEGER,
         name TEXT,
         email TEXT,
         role TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (org_id) REFERENCES organizations(id)
     )
     """)
 

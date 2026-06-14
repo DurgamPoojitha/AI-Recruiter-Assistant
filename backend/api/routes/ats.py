@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Request
+from backend.api.dependencies import RoleChecker, get_current_user
+from backend.services.pii_service import get_pii_service
 from backend.models.domain import (
     CandidateStatusUpdate,
     CandidateNoteCreate,
@@ -16,7 +18,10 @@ from backend.core.exceptions import AppError
 
 router = APIRouter()
 
-@router.post("/candidates/{candidate_id}/jobs/{job_id}/status")
+allow_all = RoleChecker(["Admin", "Recruiter", "Reviewer"])
+allow_write = RoleChecker(["Admin", "Recruiter"])
+
+@router.post("/candidates/{candidate_id}/jobs/{job_id}/status", dependencies=[Depends(allow_write)])
 def update_status(candidate_id: int, job_id: int, payload: CandidateStatusUpdate):
     try:
         update_candidate_status(candidate_id, job_id, payload.status, payload.recruiter_id)
@@ -24,7 +29,7 @@ def update_status(candidate_id: int, job_id: int, payload: CandidateStatusUpdate
     except Exception as e:
         raise AppError(f"Failed to update status: {str(e)}", 500)
 
-@router.post("/candidates/{candidate_id}/notes")
+@router.post("/candidates/{candidate_id}/notes", dependencies=[Depends(allow_write)])
 def add_note(candidate_id: int, payload: CandidateNoteCreate):
     try:
         add_candidate_note(candidate_id, payload.recruiter_id, payload.note_text)
@@ -40,7 +45,7 @@ def get_notes(candidate_id: int):
     except Exception as e:
         raise AppError(f"Failed to retrieve notes: {str(e)}", 500)
 
-@router.post("/candidates/{candidate_id}/tags")
+@router.post("/candidates/{candidate_id}/tags", dependencies=[Depends(allow_write)])
 def add_tag(candidate_id: int, payload: CandidateTagAdd):
     try:
         add_candidate_tag(candidate_id, payload.tag_name)
@@ -57,9 +62,17 @@ def get_tags(candidate_id: int):
         raise AppError(f"Failed to retrieve tags: {str(e)}", 500)
 
 @router.get("/jobs/{job_id}/pipeline")
-def get_pipeline(job_id: int):
+def get_pipeline(job_id: int, user: dict = Depends(get_current_user)):
     try:
         pipeline = get_pipeline_summary(job_id)
+        
+        # PII Redaction for Reviewers
+        if "Reviewer" in user.get("roles", []) and "Admin" not in user.get("roles", []):
+            pii_service = get_pii_service()
+            for stage in pipeline:
+                for idx, cand in enumerate(pipeline[stage]):
+                    pipeline[stage][idx] = pii_service.redact_candidate_details(cand)
+                    
         return {"pipeline": pipeline}
     except Exception as e:
         raise AppError(f"Failed to retrieve pipeline: {str(e)}", 500)

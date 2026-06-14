@@ -1,12 +1,12 @@
 from backend.repositories.base import BaseRepository
 
 class JobRepository(BaseRepository):
-    def insert_job(self, title: str, description: str) -> int:
+    def insert_job(self, title: str, description: str, org_id: int) -> int:
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO jobs (title, description) VALUES (?, ?)",
-            (title, description)
+            "INSERT INTO jobs (title, description, org_id) VALUES (?, ?, ?)",
+            (title, description, org_id)
         )
         job_id = cursor.lastrowid
         conn.commit()
