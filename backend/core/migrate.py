@@ -42,3 +42,9 @@ else:
         print(f"Error during migration: {e}")
     finally:
         conn.close()
+    try:
+        cursor.execute("ALTER TABLE candidates ADD COLUMN risk_level TEXT DEFAULT 'Low'")
+        cursor.execute("ALTER TABLE candidates ADD COLUMN risk_factors TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass

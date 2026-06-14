@@ -55,6 +55,8 @@ def init_db(db_path: str = settings.DEFAULT_DB_PATH):
         highest_education_level TEXT,
         raw_text TEXT,
         filename TEXT,
+        risk_level TEXT DEFAULT 'Low',
+        risk_factors TEXT, -- JSON array
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (org_id) REFERENCES organizations(id)
     )

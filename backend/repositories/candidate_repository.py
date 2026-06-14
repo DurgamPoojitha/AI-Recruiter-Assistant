@@ -12,12 +12,14 @@ class CandidateRepository(BaseRepository):
         edu_json = json.dumps(parsed_resume.education)
         exp_json = json.dumps(parsed_resume.experience)
         cert_json = json.dumps(parsed_resume.certifications)
+        risk_factors_json = json.dumps(getattr(parsed_resume, "risk_factors", []))
+        risk_level = getattr(parsed_resume, "risk_level", "Low")
         
         cursor.execute("""
         INSERT INTO candidates (
             name, email, phone, skills, education, experience, certifications, 
-            total_experience_years, highest_education_level, raw_text, filename, org_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            total_experience_years, highest_education_level, raw_text, filename, org_id, risk_level, risk_factors
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             parsed_resume.name,
             parsed_resume.email,
@@ -30,7 +32,9 @@ class CandidateRepository(BaseRepository):
             parsed_resume.highest_education_level,
             raw_text,
             filename,
-            org_id
+            org_id,
+            risk_level,
+            risk_factors_json
         ))
         candidate_id = cursor.lastrowid
         conn.commit()
@@ -52,6 +56,8 @@ class CandidateRepository(BaseRepository):
             c.certifications as certifications,
             c.total_experience_years as total_experience_years,
             c.highest_education_level as highest_education_level,
+            c.risk_level as risk_level,
+            c.risk_factors as risk_factors,
             mr.final_score as match_score,
             mr.ats_score as ats_score
         FROM candidates c
@@ -75,6 +81,8 @@ class CandidateRepository(BaseRepository):
             "certifications": json.loads(row["certifications"]) if row["certifications"] else [],
             "total_experience_years": row["total_experience_years"],
             "highest_education_level": row["highest_education_level"],
+            "risk_level": row["risk_level"] or "Low",
+            "risk_factors": json.loads(row["risk_factors"]) if row["risk_factors"] else [],
             "match_score": row["match_score"] or 0.0,
             "ats_score": row["ats_score"] or 0.0
         }

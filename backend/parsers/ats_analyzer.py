@@ -1,6 +1,6 @@
 import re
 from typing import List, Dict, Any
-from backend.services.embedding_services.domain import ParsedResume, ResumeStrengthBreakdown, ATSAnalysisResponse
+from backend.models.domain import ParsedResume, ResumeStrengthBreakdown, ATSAnalysisResponse
 
 # Keywords indicative of quantifiable results and leadership impact
 ACHIEVEMENT_KEYWORDS = [
@@ -199,6 +199,8 @@ def analyze_resume_ats(raw_text: str, parsed_resume: ParsedResume, filename: str
         strengths=strengths,
         weaknesses=weaknesses,
         recommendation=recommendation,
+        risk_level=parsed_resume.risk_level,
+        risk_factors=parsed_resume.risk_factors,
         strength_breakdown=strength_breakdown,
         parsed_resume=parsed_resume
     )

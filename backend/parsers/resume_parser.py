@@ -1,6 +1,6 @@
 import re
 from typing import Dict, List, Any, Tuple, Optional
-from backend.services.embedding_services.domain import ParsedResume
+from backend.models.domain import ParsedResume
 
 # Standard sections keywords mapping
 SECTION_KEYWORDS = {
@@ -144,6 +144,58 @@ def calculate_years_of_experience(text: str, experience_lines: List[str]) -> flo
     # Combine or take the maximum of both heuristic signals
     return max(total_years, computed_years)
 
+def analyze_employment_history(text: str) -> Tuple[str, List[str]]:
+    from datetime import datetime
+    current_year = datetime.now().year
+    
+    date_range_pattern = r'\b(20\d{2}|19\d{2})\s*[-–—to\s]+\s*(20\d{2}|19\d{2}|present|current|now)\b'
+    matches = re.findall(date_range_pattern, text, re.IGNORECASE)
+    
+    if not matches:
+        return "Low", []
+        
+    periods = []
+    for start, end in matches:
+        start_yr = int(start)
+        end_yr = current_year if end.lower() in ["present", "current", "now"] else int(end)
+        if start_yr <= end_yr <= current_year and start_yr > 1950:
+            periods.append((start_yr, end_yr))
+            
+    # Sort periods by start year
+    periods.sort(key=lambda x: x[0])
+    
+    risk_level = "Low"
+    risk_factors = []
+    
+    if not periods:
+        return risk_level, risk_factors
+        
+    # Detect Gaps
+    max_gap = 0
+    for i in range(1, len(periods)):
+        prev_end = periods[i-1][1]
+        curr_start = periods[i][0]
+        gap = curr_start - prev_end
+        if gap > max_gap:
+            max_gap = gap
+            
+    # A gap > 0 years (1 year gap) can be flagged if we only have years. Let's flag gaps >= 1 year as potential.
+    if max_gap >= 1:
+        risk_level = "Medium" if max_gap == 1 else "High"
+        risk_factors.append(f"Employment gap of {max_gap} year(s) detected.")
+        
+    # Detect Job Hopping
+    recent_jobs = 0
+    for start, end in periods:
+        if end >= current_year - 2:
+            recent_jobs += 1
+            
+    if recent_jobs > 3:
+        risk_level = "High"
+        risk_factors.append(f"Frequent job changes detected: {recent_jobs} jobs in the last 2 years.")
+        
+    return risk_level, risk_factors
+
 def extract_highest_education(text: str) -> str:
     """Detect highest level of education from text."""
     for degree_name, pattern in DEGREE_HIERARCHY:
@@ -169,8 +221,9 @@ def parse_resume(raw_text: str, predefined_skills: List[str]) -> ParsedResume:
     # Education
     highest_edu = extract_highest_education(raw_text)
     
-    # Experience
+    # Experience & Risk
     exp_years = calculate_years_of_experience(raw_text, sections["experience"])
+    risk_level, risk_factors = analyze_employment_history(raw_text)
     
     return ParsedResume(
         name=name,
@@ -182,5 +235,7 @@ def parse_resume(raw_text: str, predefined_skills: List[str]) -> ParsedResume:
         experience=sections["experience"],
         certifications=sections["certifications"],
         total_experience_years=float(exp_years),
-        highest_education_level=highest_edu
+        highest_education_level=highest_edu,
+        risk_level=risk_level,
+        risk_factors=risk_factors
     )

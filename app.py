@@ -311,6 +311,15 @@ with tab_single_ats:
                         for w in ats_analysis.weaknesses:
                             st.markdown(f"<div class='feedback-box feedback-warning'>💡 {w}</div>", unsafe_allow_html=True)
                             
+                    st.markdown("---")
+                    risk_color = "#10b981" if ats_analysis.risk_level == "Low" else ("#f59e0b" if ats_analysis.risk_level == "Medium" else "#ef4444")
+                    st.markdown(f"**🚨 Candidate Risk Analyzer**: <span style='color:{risk_color}; font-weight:bold;'>{ats_analysis.risk_level} Risk</span>", unsafe_allow_html=True)
+                    if ats_analysis.risk_factors:
+                        for rf in ats_analysis.risk_factors:
+                            st.markdown(f"- {rf}")
+                    else:
+                        st.markdown("- No significant risks detected.")
+                        
                     st.markdown(f"<div class='recommendation-card'><h3>Recruiter Decision</h3><p>{ats_analysis.recommendation}</p></div>", unsafe_allow_html=True)
                     
                 except Exception as e:
@@ -827,7 +836,38 @@ with tab_analytics:
         
     if total_candidates > 0:
         st.markdown("---")
-        st.markdown("### 📈 Distributions & Talent Breakdown")
+        st.markdown("### 📈 Hiring Funnel & Pipeline Analytics")
+        
+        # We need a job selector to show the funnel for a specific job, or aggregate
+        conn = sqlite3.connect("data/recruiter.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, title FROM jobs WHERE org_id = ?", (st.session_state.get("user", {}).get("org_id", 1),))
+        available_jobs = cursor.fetchall()
+        conn.close()
+        
+        if available_jobs:
+            job_opts = {f"Job {j[0]}: {j[1]}": j[0] for j in available_jobs}
+            selected_job = st.selectbox("Select Job to View Pipeline Funnel", list(job_opts.keys()))
+            
+            pipeline_data = get_pipeline_summary(job_opts[selected_job])
+            
+            # Aggregate the pipeline for the funnel
+            funnel_stages = ["Applied", "Screening", "Interview", "Offer", "Hired"]
+            funnel_counts = [len(pipeline_data.get(stage, [])) for stage in funnel_stages]
+            
+            fig_funnel = go.Figure(go.Funnel(
+                y = funnel_stages,
+                x = funnel_counts,
+                textposition = "inside",
+                textinfo = "value+percent initial",
+                marker = {"color": ["#4f46e5", "#8b5cf6", "#d946ef", "#ec4899", "#f43f5e"]}
+            ))
+            fig_funnel.update_layout(title_text="Candidate Drop-off Funnel", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font=dict(color='white'))
+            st.plotly_chart(fig_funnel, use_container_width=True)
+            
+            st.markdown("---")
+        
+        st.markdown("### 📊 Distributions & Talent Breakdown")
         
         # Load all scores for distributions
         conn = sqlite3.connect("data/recruiter.db")

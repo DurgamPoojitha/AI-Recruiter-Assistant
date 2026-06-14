@@ -12,6 +12,8 @@ class ParsedResume(BaseModel):
     certifications: List[str] = Field(default_factory=list, description="Certifications and licenses")
     total_experience_years: float = Field(0.0, description="Calculated total years of experience")
     highest_education_level: str = Field("None", description="Highest detected education degree level")
+    risk_level: str = Field("Low", description="Detected risk level: Low, Medium, High")
+    risk_factors: List[str] = Field(default_factory=list, description="Explanations for flagged risks")
 
 class ParsedJD(BaseModel):
     required_skills: List[str] = Field(default_factory=list, description="Required technical/soft skills")
@@ -62,6 +64,8 @@ class ATSAnalysisResponse(BaseModel):
     strengths: List[str] = Field(default_factory=list, description="List of detected resume strengths")
     weaknesses: List[str] = Field(default_factory=list, description="List of detected areas of improvement")
     recommendation: str = Field(..., description="Textual hiring recommendation")
+    risk_level: str = Field("Low", description="Candidate risk level")
+    risk_factors: List[str] = Field(default_factory=list, description="Risk explanations")
     strength_breakdown: ResumeStrengthBreakdown
     parsed_resume: ParsedResume
 
