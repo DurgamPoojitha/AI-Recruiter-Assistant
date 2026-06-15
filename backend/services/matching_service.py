@@ -1,4 +1,4 @@
-from backend.services.embedding_services.domain import ParsedResume, ParsedJD, ScoringExplanation
+from backend.models.domain import ParsedResume, ParsedJD, ScoringExplanation
 from backend.services.embedding_service import get_embedding_service
 from typing import Dict, Any, List
 

@@ -1,14 +1,20 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import Pipeline from './pages/Pipeline';
 import Matcher from './pages/Matcher';
+import { setAuthTokenGetter } from './api';
 import './App.css';
 
 function App() {
-  const { isAuthenticated, loginWithRedirect, isLoading } = useAuth0();
+  const { isAuthenticated, loginWithRedirect, isLoading, getAccessTokenSilently } = useAuth0();
+
+  useEffect(() => {
+    setAuthTokenGetter(getAccessTokenSilently);
+  }, [getAccessTokenSilently]);
 
   if (isLoading) {
     return <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center' }}>Loading Enterprise Recruiter...</div>;

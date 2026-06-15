@@ -1,6 +1,6 @@
 import re
 from typing import List, Tuple
-from backend.services.embedding_services.domain import ParsedJD
+from backend.models.domain import ParsedJD
 from backend.parsers.resume_parser import DEGREE_HIERARCHY
 
 PREFERRED_KEYWORDS = [

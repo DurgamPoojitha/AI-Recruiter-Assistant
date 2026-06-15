@@ -1,28 +1,40 @@
 import { useState } from 'react';
 import { FileText, CheckCircle, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { api } from '../api';
 
 function Matcher() {
-  const [resumeText, setResumeText] = useState('');
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
 
   const handleAnalyze = async () => {
+    if (!resumeFile || !jobDescription) {
+      alert("Please provide both a resume PDF/TXT and a job description.");
+      return;
+    }
+    
     setLoading(true);
     try {
-      // We simulate an API call here. In production, this would hit the FastAPI endpoints directly.
-      // E.g. axios.post('http://localhost:8000/analyze', { resume_text: resumeText, job_description: jobDescription })
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const formData = new FormData();
+      formData.append("resume", resumeFile);
+      formData.append("job_description", jobDescription);
+
+      const response = await api.post('/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       
+      const data = response.data;
       setResult({
-        score: 84,
-        risk: 'Low',
-        strengths: ['Strong React experience', 'Cloud architecture skills', 'Team leadership'],
-        weaknesses: ['No direct GraphQL experience mentioned', 'Slightly under required years for AWS'],
-        recommendation: 'Proceed to phone screen. Strong technical alignment.'
+        score: data.match_score || Math.round(data.scoring?.final_score || 0),
+        risk: data.parsed_resume?.risk_level || 'Low',
+        strengths: data.matched_skills || ['Matches job requirements'],
+        weaknesses: data.missing_skills || ['None detected'],
+        recommendation: (data.recommendations && data.recommendations.join(" ")) || 'Proceed to review.'
       });
     } catch (err) {
       console.error(err);
+      alert("Failed to analyze resume. Check console.");
     } finally {
       setLoading(false);
     }
@@ -40,13 +52,12 @@ function Matcher() {
         {/* Input Form */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div>
-            <label style={{ display: 'block', fontWeight: '500', marginBottom: '8px' }}>1. Paste Candidate Resume</label>
-            <textarea 
-              rows={8} 
-              placeholder="Paste raw resume text here..."
-              value={resumeText}
-              onChange={(e) => setResumeText(e.target.value)}
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', resize: 'vertical' }}
+            <label style={{ display: 'block', fontWeight: '500', marginBottom: '8px' }}>1. Upload Candidate Resume</label>
+            <input 
+              type="file" 
+              accept=".pdf,.txt"
+              onChange={(e) => setResumeFile(e.target.files ? e.target.files[0] : null)}
+              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}
             />
           </div>
 

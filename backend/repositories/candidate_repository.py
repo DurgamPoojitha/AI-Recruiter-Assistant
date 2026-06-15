@@ -98,4 +98,29 @@ class CandidateRepository(BaseRepository):
         """, (job_id,))
         rows = cursor.fetchall()
         conn.close()
-        return [{"id": row["id"], "raw_text": row["raw_text"]} for row in rows]
+        return [dict(row) for row in rows]
+
+    def get_dashboard_metrics(self, org_id: int):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        # Total Candidates
+        cursor.execute("SELECT COUNT(*) as total_candidates FROM candidates WHERE org_id = ?", (org_id,))
+        total_candidates = cursor.fetchone()["total_candidates"]
+        
+        # Open Roles
+        cursor.execute("SELECT COUNT(*) as open_roles FROM jobs WHERE org_id = ?", (org_id,))
+        open_roles = cursor.fetchone()["open_roles"]
+        
+        # Average Match Score
+        cursor.execute("SELECT AVG(final_score) as avg_match_score FROM match_results mr JOIN candidates c ON mr.candidate_id = c.id WHERE c.org_id = ?", (org_id,))
+        avg_score_row = cursor.fetchone()
+        avg_match_score = round(avg_score_row["avg_match_score"] or 0, 1)
+        
+        conn.close()
+        return {
+            "total_candidates": total_candidates,
+            "open_roles": open_roles,
+            "avg_match_score": avg_match_score,
+            "time_to_hire_days": 18 # Placeholder for real metric
+        }

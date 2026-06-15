@@ -20,3 +20,11 @@ class JobRepository(BaseRepository):
         row = cursor.fetchone()
         conn.close()
         return row["description"] if row else ""
+
+    def get_all_jobs(self, org_id: int):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, title, description, created_at FROM jobs WHERE org_id = ? ORDER BY created_at DESC", (org_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]

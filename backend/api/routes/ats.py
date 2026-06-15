@@ -14,6 +14,8 @@ from backend.repositories import (
     get_candidate_tags,
     get_pipeline_summary
 )
+from backend.repositories.job_repository import JobRepository
+from backend.repositories.candidate_repository import CandidateRepository
 from backend.core.exceptions import AppError
 
 router = APIRouter()
@@ -76,3 +78,21 @@ def get_pipeline(job_id: int, user: dict = Depends(get_current_user)):
         return {"pipeline": pipeline}
     except Exception as e:
         raise AppError(f"Failed to retrieve pipeline: {str(e)}", 500)
+
+@router.get("/jobs")
+def get_jobs(user: dict = Depends(get_current_user)):
+    try:
+        repo = JobRepository()
+        jobs = repo.get_all_jobs(user.get("org_id", 1))
+        return {"jobs": jobs}
+    except Exception as e:
+        raise AppError(f"Failed to retrieve jobs: {str(e)}", 500)
+
+@router.get("/dashboard/metrics")
+def get_dashboard_metrics(user: dict = Depends(get_current_user)):
+    try:
+        repo = CandidateRepository()
+        metrics = repo.get_dashboard_metrics(user.get("org_id", 1))
+        return metrics
+    except Exception as e:
+        raise AppError(f"Failed to retrieve dashboard metrics: {str(e)}", 500)

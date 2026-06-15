@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Users, FileText, CheckCircle, TrendingUp } from 'lucide-react';
+import { api } from '../api';
 
 const data = [
   { name: 'Jan', applicants: 4000, hired: 240 },
@@ -20,6 +22,25 @@ const skillsData = [
 ];
 
 function Dashboard() {
+  const [metrics, setMetrics] = useState({
+    total_candidates: 0,
+    open_roles: 0,
+    avg_match_score: 0,
+    time_to_hire_days: 0
+  });
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const response = await api.get('/ats/dashboard/metrics');
+        setMetrics(response.data);
+      } catch (err) {
+        console.error("Failed to fetch dashboard metrics:", err);
+      }
+    };
+    fetchMetrics();
+  }, []);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
       
@@ -32,7 +53,7 @@ function Dashboard() {
               <Users size={20} color="var(--primary-color)" />
             </div>
           </div>
-          <div style={{ fontSize: '32px', fontWeight: '700' }}>12,483</div>
+          <div style={{ fontSize: '32px', fontWeight: '700' }}>{metrics.total_candidates}</div>
           <div style={{ fontSize: '14px', color: 'var(--success-color)', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <TrendingUp size={16} /> +14% this month
           </div>
@@ -45,8 +66,8 @@ function Dashboard() {
               <FileText size={20} color="var(--warning-color)" />
             </div>
           </div>
-          <div style={{ fontSize: '32px', fontWeight: '700' }}>42</div>
-          <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Across 6 departments</div>
+          <div style={{ fontSize: '32px', fontWeight: '700' }}>{metrics.open_roles}</div>
+          <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Active requisitions</div>
         </div>
 
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -56,7 +77,7 @@ function Dashboard() {
               <CheckCircle size={20} color="var(--success-color)" />
             </div>
           </div>
-          <div style={{ fontSize: '32px', fontWeight: '700' }}>78%</div>
+          <div style={{ fontSize: '32px', fontWeight: '700' }}>{metrics.avg_match_score}%</div>
           <div style={{ fontSize: '14px', color: 'var(--success-color)', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <TrendingUp size={16} /> +2.5% vs last month
           </div>
@@ -69,7 +90,7 @@ function Dashboard() {
               <Users size={20} color="var(--danger-color)" />
             </div>
           </div>
-          <div style={{ fontSize: '32px', fontWeight: '700' }}>18 Days</div>
+          <div style={{ fontSize: '32px', fontWeight: '700' }}>{metrics.time_to_hire_days} Days</div>
           <div style={{ fontSize: '14px', color: 'var(--success-color)', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <TrendingUp size={16} style={{ transform: 'rotate(180deg)' }} /> -3 days vs average
           </div>
