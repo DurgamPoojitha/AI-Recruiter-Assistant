@@ -1,146 +1,128 @@
 # AI Recruiter Assistant | Enterprise Recruitment Suite
 
-A high-performance, intelligence-driven local candidate matching, ranking, and ATS compliance analyzer. The platform uses sentence embeddings (`sentence-transformers/all-MiniLM-L6-v2`) for semantic matchmaking, SQLite for relational persistence, and interactive visualization dashboards built with Plotly and Streamlit.
+A high-performance, intelligence-driven local candidate matching, ranking, and ATS compliance analyzer. The platform uses sentence embeddings (`sentence-transformers/all-MiniLM-L6-v2`) for semantic matchmaking, SQLite for relational persistence, and interactive visualization dashboards built with React and FastAPI.
 
 ---
 
-## 📂 Final Folder Structure
+## 🌟 Key Enterprise Features
 
-The application follows a clean, modular microservice architecture separating database storage, core parsers, advanced AI models, API controllers, and client dashboards.
+The application has been heavily upgraded to support modern enterprise recruiting workflows:
 
+### 1. Advanced AI Resume Parsing & Fraud Detection
+* **Semantic Matchmaking:** Uses NLP models to match candidate experience against job descriptions mathematically.
+* **Fraud Detection Heuristics:** Automatically scans for known "Degree Mills", unrealistic timelines (e.g., high experience with no graduation dates), and analyzes job-hopping behavior.
+* **GitHub Detection:** Identifies candidate repositories and links to assess technical credibility.
+* **Internship Isolation:** Correctly flags and maps internship vs. full-time experience for accurate filtering.
+
+### 2. Deep-Dive Candidate Modal & AI Interview Prep
+* **Technical Validation Generator:** The backend dynamically generates customized Beginner, Intermediate, and Advanced interview questions targeting the candidate's specific reported skills.
+* **Skill Gap & Learning Roadmap:** For missing requirements, the system generates a 30-day learning roadmap, allowing recruiters to ask: *"We use X heavily. How would you approach learning it?"*
+* **AI Recruiter Decision Engine:** Provides an immediate assessment (e.g., *"Strong Buy"*, *"Pass"*).
+
+### 3. Advanced Pipeline Filtering & Analytics
+* **Relational Database Mapping:** Employs advanced SQL mapping tables (`candidate_skills`, `candidate_experience`) for hyper-fast querying.
+* **Multi-Condition Filtering:** A sticky left-sidebar allows you to filter the Kanban board instantly by Target Skills, Minimum ATS Score, Years of Experience, Risk Level, and Internship Experience.
+* **Live Analytics Widgets:** Real-time tracking of pipeline health, shortlisted counts, and hired metrics.
+
+### 4. Premium UI/UX
+* **Glassmorphism & Skeleton Loaders:** Modern design featuring animated skeleton states while waiting for backend AI inference.
+* **Responsive Interactions:** Hover states, subtle shadows, and scale transformations provide a sleek, highly responsive feel.
+
+---
+
+## 🗄️ Architecture Stack
+
+* **Frontend:** React (Vite) + Lucide Icons + Recharts
+* **Backend:** Python + FastAPI
+* **Database:** SQLite (Relational Design)
+* **NLP Pipeline:** Hugging Face `sentence-transformers/all-MiniLM-L6-v2`
+* **Containerization:** Docker & Docker Compose
+
+---
+
+## 🛠️ Local Setup & Running the Application
+
+To run the application locally, you will need to start both the Python backend and the React frontend in separate terminal windows.
+
+### 1. Start the Backend (FastAPI)
+```bash
+# Clone the repository
+git clone https://github.com/DurgamPoojitha/AI-Recruiter-Assistant.git
+cd AI-Recruiter-Assistant
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Launch the FastAPI Backend
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
-AI-Recruiter-Assistant/
-├── app.py                     # Streamlit Enterprise Recruiter Dashboard
-├── requirements.txt           # Main python dependency definitions
-├── README.md                  # System Documentation & Refactoring Guide
-├── test_backend.py            # Unit & Integration API test suites
-├── test_integration.py        # Playwright UI automated tests
-├── data/                      # Local storage and text databases
-│   ├── skills.txt             # Predefined master list of skills
-│   └── recruiter.db           # SQLite database persistence
-├── frontend/                  # Phase 1 HTML/JS/CSS client assets
-│   ├── index.html
-│   ├── script.js
-│   └── style.css
-└── backend/                   # Python FastAPI service logic
-    ├── main.py                # Main API entry points & controller logic
-    ├── model.py               # Hugging Face sentence embeddings provider
-    ├── scoring.py             # Match scoring engine & comparison compiler
-    ├── schemas.py             # Pydantic validation schemas
-    ├── copilot.py             # Recruiter Copilot chatbot query engine
-    ├── report_generator.py    # Print-to-PDF ready HTML report card compiler
-    ├── database.py            # SQLite table definitions & database helpers
-    └── parsers/               # Parser modules
-        ├── resume_parser.py   # Heuristic structured resume text parser
-        └── jd_parser.py       # Heuristic structured job description parser
+*Note: The first time you start the backend, it will download a ~90MB NLP model from Hugging Face. Subsequent starts will be instant.*
+
+### 2. Start the Frontend (React)
+Open a new terminal window:
+```bash
+cd AI-Recruiter-Assistant/frontend-react
+
+# Install Node dependencies
+npm install
+
+# Start the Vite development server
+npm run dev
+```
+Navigate to **`http://localhost:5173`** in your browser to view the application!
+
+---
+
+## 🚀 Production Deployment Guide (100% Free via Oracle Cloud)
+
+This application has been fully containerized with Docker, meaning it can be deployed anywhere. Because the NLP model requires memory, you need a server with at least 2GB of RAM. The **Oracle Cloud "Always Free" ARM instance** provides up to 24GB of RAM completely free forever.
+
+### Step 1: Claim Your Free Oracle Cloud Server
+1. Go to the [Oracle Cloud Free Tier](https://www.oracle.com/cloud/free/) and sign up.
+2. Click **Create a VM instance**.
+3. Under **Image and Shape**, click "Edit":
+   * Set Image to **Canonical Ubuntu 22.04**.
+   * Set Shape to **Ampere ARM (VM.Standard.A1.Flex)**.
+   * Slide OCPU count to **4** and Memory (RAM) to **24 GB**.
+4. Scroll down to "Add SSH keys" and select **Save private key** (Keep this `.key` file safe!).
+5. Click **Create** and wait for the status to turn green. Note your **Public IP Address**.
+
+### Step 2: Open Cloud Firewalls
+1. On your instance details page, click on your **Subnet**.
+2. Click on the **Default Security List** -> **Add Ingress Rules**.
+3. Add two rules (one for the frontend, one for the backend API):
+   * Source CIDR: `0.0.0.0/0`, Destination Port Range: `80`
+   * Source CIDR: `0.0.0.0/0`, Destination Port Range: `8000`
+
+### Step 3: Connect & Deploy
+Open your terminal on your local machine and SSH into your new server:
+```bash
+chmod 400 path/to/your/ssh-key.key
+ssh -i path/to/your/ssh-key.key ubuntu@YOUR_PUBLIC_IP
 ```
 
----
+Once inside the Ubuntu server, install Docker and open the internal firewall:
+```bash
+# Install Docker
+sudo apt update
+sudo apt install -y docker.io docker-compose git
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+# (Type `exit` and SSH back in so permissions apply)
 
-## 🗄️ Database Schema
-
-The database is built on **SQLite** (`data/recruiter.db`). Below is the SQL Schema defining candidate metadata, job descriptions, and multi-faceted match scores:
-
-```sql
--- 1. Jobs Table
-CREATE TABLE IF NOT EXISTS jobs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 2. Candidates Table
-CREATE TABLE IF NOT EXISTS candidates (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    email TEXT,
-    phone TEXT,
-    skills TEXT,                    -- JSON array of parsed technologies
-    education TEXT,                 -- JSON array of education details
-    experience TEXT,                -- JSON array of work experience
-    certifications TEXT,            -- JSON array of credentials
-    total_experience_years REAL,
-    highest_education_level TEXT,
-    raw_text TEXT,                  -- Raw resume PDF/TXT text
-    filename TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 3. Match Results Table
-CREATE TABLE IF NOT EXISTS match_results (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    candidate_id INTEGER,
-    job_id INTEGER,
-    semantic_score REAL,            -- 40% weight
-    skill_score REAL,               -- 30% weight
-    experience_score REAL,          -- 20% weight
-    education_score REAL,           -- 10% weight
-    final_score REAL,               -- 100% total weighted score
-    explanation TEXT,
-    ats_score REAL,                 -- 0-100 completeness score
-    strengths TEXT,                 -- JSON array of selling points
-    weaknesses TEXT,                -- JSON array of gaps
-    recommendation TEXT,            -- Decision (Strong Buy, Hire, Consider, Pass)
-    strength_breakdown TEXT,        -- JSON object representing sub-scores
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (candidate_id) REFERENCES candidates(id),
-    FOREIGN KEY (job_id) REFERENCES jobs(id)
-);
+# Open internal firewall ports
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 8000 -j ACCEPT
+sudo netfilter-persistent save
 ```
 
----
+Finally, clone and spin up the Docker containers:
+```bash
+git clone https://github.com/DurgamPoojitha/AI-Recruiter-Assistant.git
+cd AI-Recruiter-Assistant
 
-## 🔌 API Architecture
+# Start the application in detached mode
+docker-compose up -d --build
+```
 
-FastAPI exposes endpoints structured into four core groups:
-
-| Endpoint | Method | Input Payload | Response Schema | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| `/analyze` | `POST` | `resume` (File), `job_description` (Form) | `MatchAnalysisResponse` | Single job similarity match |
-| `/analyze_ats` | `POST` | `resume` (File) | `ATSAnalysisResponse` | Single ATS compliance check |
-| `/analyze_bulk` | `POST` | `resumes` (Files), `job_description` (Form) | `BulkAnalysisResponse` | Bulk parses, ranks, and saves to DB |
-| `/compare` | `GET` | `candidate_a_id`, `candidate_b_id`, `job_id` | `CompareResponse` | Side-by-side comparative analysis |
-| `/interview_questions`| `POST` | `QuestionsRequest` (Skills) | `QuestionsResponse` | Skill questions by difficulty level |
-| `/rewrite_bullet` | `POST` | `RewriteRequest` (Bullet text) | `RewriteResponse` | 3 improved bullet point variations |
-| `/skill_gap` | `POST` | `SkillGapRequest` (Missing skills)| `SkillGapResponse` | Learning roadmaps & course suggestions |
-| `/recruiter_report` | `POST` | `RecruiterReportRequest` (Details) | `RecruiterReportResponse` | Candidate hiring report summary |
-| `/copilot` | `POST` | `CopilotRequest` (Query, Job ID) | `CopilotResponse` | Copilot conversational answer |
-| `/download_report` | `GET` | `candidate_id`, `job_id` | `HTMLResponse` (raw text/html)| Downloadable scorecard report page |
-
----
-
-## 🛠️ Step-by-Step Local Setup
-
-1. **Clone & Setup Environment:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. **Launch API Backend:**
-   ```bash
-   uvicorn backend.main:app --reload
-   ```
-   API docs will be available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
-3. **Launch Streamlit Dashboard:**
-   ```bash
-   streamlit run app.py
-   ```
-
----
-
-## 🚀 Production Optimizations
-
-1. **MiniLM Embedding Caching**: Avoid generating embeddings for redundant strings. Use internal caching or `lru_cache` for high-frequency queries.
-2. **Database Indexes**: To speed up ranking lookups in high-volume hiring pipelines, ensure queries are indexed:
-   ```sql
-   CREATE INDEX IF NOT EXISTS idx_match_results_job ON match_results(job_id);
-   CREATE INDEX IF NOT EXISTS idx_match_results_final_score ON match_results(final_score DESC);
-   ```
-3. **Multi-Threading / Async I/O**: FastAPI handles multiple file uploads concurrently using `UploadFile` which is backed by async SpooledTemporaryFiles. This prevents CPU blocks during heavy resume parses.
-4. **Hugging Face Model Offline Mode**: Pre-download the Hugging Face weights into your container environment during the build step, and set `HF_HUB_DISABLE_SYMLINKS_WARNING=1` to optimize cold start performance in serverless platforms.
-
-## Phase 1: Foundation Hardening Updates
-- **Clean Architecture:** Refactored to use Repositories, Services, Models, and core configurations.
-- **Performance Optimization:** Introduced `lru_cache` and Singleton patterns for ML Embedding inference.
-- **Robustness:** Added structured global exception handling and an Alembic migration system structure.
-- **Testing:** Moved tests to `tests/` directory and added architecture validation tests.
+You can now access your live, production-grade AI Recruiter Assistant by simply typing your **Public IP Address** into your web browser!
