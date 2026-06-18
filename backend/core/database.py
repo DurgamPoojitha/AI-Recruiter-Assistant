@@ -162,5 +162,27 @@ def init_db(db_path: str = settings.DEFAULT_DB_PATH):
     )
     """)
 
+    # Phase 3: Advanced Filtering Mapping Tables
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS candidate_skills (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        candidate_id INTEGER,
+        skill_name TEXT,
+        FOREIGN KEY (candidate_id) REFERENCES candidates(id)
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_skills_name ON candidate_skills(skill_name)")
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS candidate_experience_mapping (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        candidate_id INTEGER,
+        role_title TEXT,
+        company TEXT,
+        is_internship BOOLEAN DEFAULT 0,
+        FOREIGN KEY (candidate_id) REFERENCES candidates(id)
+    )
+    """)
+
     conn.commit()
     conn.close()

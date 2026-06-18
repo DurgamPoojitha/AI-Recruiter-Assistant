@@ -37,9 +37,79 @@ class CandidateRepository(BaseRepository):
             risk_factors_json
         ))
         candidate_id = cursor.lastrowid
+        
+        # Populate candidate_skills
+        if parsed_resume.skills:
+            skill_inserts = [(candidate_id, skill) for skill in parsed_resume.skills]
+            cursor.executemany("""
+                INSERT INTO candidate_skills (candidate_id, skill_name) VALUES (?, ?)
+            """, skill_inserts)
+
+        # Populate candidate_experience_mapping
+        if parsed_resume.experience:
+            exp_inserts = []
+            for exp_line in parsed_resume.experience:
+                is_intern = 1 if 'intern' in exp_line.lower() else 0
+                # Basic heuristic: title is first few words
+                title = " ".join(exp_line.split()[:4])
+                exp_inserts.append((candidate_id, title, "Unknown", is_intern))
+            
+            cursor.executemany("""
+                INSERT INTO candidate_experience_mapping (candidate_id, role_title, company, is_internship) 
+                VALUES (?, ?, ?, ?)
+            """, exp_inserts)
+
         conn.commit()
         conn.close()
         return candidate_id
+
+    def filter_candidates(self, job_id: int, filters: Dict[str, Any]) -> list:
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT DISTINCT c.id, c.name, c.highest_education_level, c.total_experience_years, c.risk_level,
+                   mr.final_score as match_score, mr.ats_score,
+                   (SELECT status FROM candidate_status_history csh WHERE csh.candidate_id = c.id AND csh.job_id = ? ORDER BY changed_at DESC LIMIT 1) as pipeline_status
+            FROM candidates c
+            JOIN match_results mr ON mr.candidate_id = c.id
+        """
+        params = [job_id]
+        
+        # Advanced Filtering conditions
+        conditions = ["mr.job_id = ?"]
+        params.append(job_id)
+        
+        if "skills" in filters and filters["skills"]:
+            skills_list = filters["skills"]
+            placeholders = ",".join(["?"] * len(skills_list))
+            query += f" JOIN candidate_skills cs ON cs.candidate_id = c.id"
+            conditions.append(f"cs.skill_name IN ({placeholders})")
+            params.extend(skills_list)
+            
+        if "min_experience" in filters:
+            conditions.append("c.total_experience_years >= ?")
+            params.append(filters["min_experience"])
+            
+        if "min_ats_score" in filters:
+            conditions.append("mr.ats_score >= ?")
+            params.append(filters["min_ats_score"])
+            
+        if "risk_level" in filters:
+            conditions.append("c.risk_level = ?")
+            params.append(filters["risk_level"])
+            
+        if "has_internship" in filters and filters["has_internship"]:
+            query += f" JOIN candidate_experience_mapping cem ON cem.candidate_id = c.id"
+            conditions.append("cem.is_internship = 1")
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+            
+        cursor.execute(query, tuple(params))
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
 
     def get_candidate_details(self, candidate_id: int, job_id: int) -> Optional[Dict[str, Any]]:
         conn = self._get_connection()

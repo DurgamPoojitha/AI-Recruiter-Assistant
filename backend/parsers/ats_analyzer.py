@@ -193,14 +193,30 @@ def analyze_resume_ats(raw_text: str, parsed_resume: ParsedResume, filename: str
     strength_breakdown = analyze_strength_breakdown(parsed_resume, raw_text)
     strengths, weaknesses, recommendation = generate_feedback(parsed_resume, ats_score, strength_breakdown)
     
+    # Advanced Fraud Detection Heuristics
+    fraud_risk_level = parsed_resume.risk_level
+    fraud_risk_factors = list(parsed_resume.risk_factors)
+    
+    # 1. Check for Degree Mills / Generic online universities often associated with fake degrees
+    degree_mills = ["Belford University", "Rochville", "Almeda", "Ashford", "Nixon"]
+    for mill in degree_mills:
+        if mill.lower() in raw_text.lower():
+            fraud_risk_level = "High"
+            fraud_risk_factors.append(f"Potential unaccredited institution detected: {mill}")
+            
+    # 2. Check for unrealistic experience vs education
+    if parsed_resume.highest_education_level == "None" and parsed_resume.total_experience_years > 15:
+        fraud_risk_factors.append("Unusually high experience with no listed education.")
+        if fraud_risk_level == "Low": fraud_risk_level = "Medium"
+        
     return ATSAnalysisResponse(
         filename=filename,
         ats_score=ats_score,
         strengths=strengths,
         weaknesses=weaknesses,
         recommendation=recommendation,
-        risk_level=parsed_resume.risk_level,
-        risk_factors=parsed_resume.risk_factors,
+        risk_level=fraud_risk_level,
+        risk_factors=fraud_risk_factors,
         strength_breakdown=strength_breakdown,
         parsed_resume=parsed_resume
     )

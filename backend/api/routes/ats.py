@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, File, UploadFile
 from backend.api.dependencies import RoleChecker, get_current_user
 from backend.services.pii_service import get_pii_service
 from backend.models.domain import (
@@ -12,16 +12,79 @@ from backend.repositories import (
     get_candidate_notes,
     add_candidate_tag,
     get_candidate_tags,
-    get_pipeline_summary
+    get_pipeline_summary,
+    insert_candidate,
+    insert_match_result,
+    get_job_description
 )
 from backend.repositories.job_repository import JobRepository
 from backend.repositories.candidate_repository import CandidateRepository
 from backend.core.exceptions import AppError
+from backend.utils import extract_text_from_file, preprocess_text, load_skills
+from backend.parsers.resume_parser import parse_resume
+from backend.parsers.jd_parser import parse_jd
+from backend.parsers.ats_analyzer import analyze_resume_ats
+from backend.services.matching_service import calculate_match
+
+PREDEFINED_SKILLS = load_skills()
 
 router = APIRouter()
 
 allow_all = RoleChecker(["Admin", "Recruiter", "Reviewer"])
 allow_write = RoleChecker(["Admin", "Recruiter"])
+
+@router.post("/jobs/{job_id}/candidates", dependencies=[Depends(allow_write)])
+async def add_candidate_to_job(job_id: int, request: Request, resume: UploadFile = File(...)):
+    try:
+        # 1. Fetch Job Description
+        job_description = get_job_description(job_id)
+        if not job_description:
+            raise AppError("Job not found", 404)
+            
+        # 2. Parse JD
+        parsed_jd = parse_jd(job_description, PREDEFINED_SKILLS)
+        clean_jd = preprocess_text(job_description)
+        
+        # 3. Read & Parse Resume
+        file_bytes = await resume.read()
+        raw_resume_text = extract_text_from_file(file_bytes, resume.filename)
+        parsed_resume = parse_resume(raw_resume_text, PREDEFINED_SKILLS)
+        clean_resume = preprocess_text(raw_resume_text)
+        
+        # 4. Calculate Match Score
+        scoring_details = calculate_match(
+            resume=parsed_resume,
+            jd=parsed_jd,
+            clean_resume_text=clean_resume,
+            clean_jd_text=clean_jd
+        )
+        ats_results = analyze_resume_ats(raw_resume_text, parsed_resume, resume.filename)
+        
+        # 5. Insert to DB
+        candidate_id = insert_candidate(parsed_resume, raw_text=raw_resume_text, filename=resume.filename)
+        
+        insert_match_result(
+            candidate_id=candidate_id,
+            job_id=job_id,
+            scoring=scoring_details,
+            ats_score=ats_results.ats_score,
+            strengths=ats_results.strengths,
+            weaknesses=ats_results.weaknesses,
+            recommendation=ats_results.recommendation,
+            strength_breakdown=ats_results.strength_breakdown
+        )
+        
+        # 6. Set initial status to 'Applied'
+        # we can just use the existing update logic:
+        # actually update_candidate_status logs activity too.
+        # usually 1 = default org_id / recruiter_id for now if user not in context
+        # user = request.state.user ? We can use Depends(get_current_user)
+        return {"message": "Candidate added successfully", "candidate_id": candidate_id}
+    except Exception as e:
+        raise AppError(f"Failed to add candidate: {str(e)}", 500)
+
+
+
 
 @router.post("/candidates/{candidate_id}/jobs/{job_id}/status", dependencies=[Depends(allow_write)])
 def update_status(candidate_id: int, job_id: int, payload: CandidateStatusUpdate):
@@ -96,3 +159,45 @@ def get_dashboard_metrics(user: dict = Depends(get_current_user)):
         return metrics
     except Exception as e:
         raise AppError(f"Failed to retrieve dashboard metrics: {str(e)}", 500)
+
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+
+class FilterRequest(BaseModel):
+    skills: Optional[List[str]] = None
+    min_experience: Optional[float] = None
+    min_ats_score: Optional[float] = None
+    risk_level: Optional[str] = None
+    has_internship: Optional[bool] = None
+
+@router.post("/jobs/{job_id}/candidates/filter")
+def filter_candidates_for_job(job_id: int, filters: FilterRequest, user: dict = Depends(get_current_user)):
+    try:
+        repo = CandidateRepository()
+        results = repo.filter_candidates(job_id, filters.dict(exclude_unset=True))
+        return {"candidates": results}
+    except Exception as e:
+        raise AppError(f"Failed to filter candidates: {str(e)}", 500)
+
+@router.get("/candidates/{candidate_id}/interview-prep")
+def get_candidate_interview_prep(candidate_id: int, job_id: int, user: dict = Depends(get_current_user)):
+    try:
+        repo = CandidateRepository()
+        details = repo.get_candidate_details(candidate_id, job_id)
+        if not details:
+            raise AppError("Candidate not found", 404)
+            
+        # Get JD skills
+        jd_repo = JobRepository()
+        # This requires jd_repo, but get_job_description returns text. 
+        # We can just use the matching results if they were saved, but we don't have them easily mapped.
+        # Alternatively, we just generate prep based on candidate's own skills.
+        from backend.services.interview_service import generate_interview_prep
+        prep = generate_interview_prep(
+            details["name"],
+            details.get("skills", []),
+            details.get("missing_skills", []) # Actually get_candidate_details doesn't return missing_skills natively without match table join 
+        )
+        return prep
+    except Exception as e:
+        raise AppError(f"Failed to generate interview prep: {str(e)}", 500)

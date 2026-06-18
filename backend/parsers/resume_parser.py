@@ -203,6 +203,11 @@ def extract_highest_education(text: str) -> str:
             return degree_name
     return "None"
 
+def extract_github_link(text: str) -> Optional[str]:
+    """Detects GitHub profile links."""
+    match = re.search(r'(https?://)?(www\.)?github\.com/[A-Za-z0-9_-]+', text, re.IGNORECASE)
+    return match.group(0) if match else None
+
 def parse_resume(raw_text: str, predefined_skills: List[str]) -> ParsedResume:
     """
     Main entry point for structured resume parsing.
@@ -213,6 +218,7 @@ def parse_resume(raw_text: str, predefined_skills: List[str]) -> ParsedResume:
     email = extract_email(raw_text)
     phone = extract_phone(raw_text)
     name = extract_name(sections["header_contact"])
+    github = extract_github_link(raw_text)
     
     # Skills extraction (matching predefined + custom heuristics)
     from backend.utils import extract_skills
@@ -224,6 +230,12 @@ def parse_resume(raw_text: str, predefined_skills: List[str]) -> ParsedResume:
     # Experience & Risk
     exp_years = calculate_years_of_experience(raw_text, sections["experience"])
     risk_level, risk_factors = analyze_employment_history(raw_text)
+    
+    if github:
+        risk_factors.append(f"GitHub Profile Detected: {github}")
+        # Reduces risk slightly if they have a github
+        if risk_level == "Medium":
+            risk_level = "Low"
     
     return ParsedResume(
         name=name,
