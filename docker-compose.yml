@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: ai_recruiter_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount the database file so it persists between container restarts
+      - ./recruiter.db:/app/recruiter.db
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      # - OPENAI_API_KEY=your_key_here
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend-react.Dockerfile
+    container_name: ai_recruiter_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
