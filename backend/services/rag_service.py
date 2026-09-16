@@ -7,14 +7,21 @@ from backend.core.logging import logger
 
 class RAGService:
     def __init__(self):
-        self.vector_store_path = "data/faiss_index"
+        self.vector_store_path = settings.FAISS_INDEX_PATH
         self.embeddings = HuggingFaceEmbeddings(model_name=settings.EMBEDDING_MODEL_NAME)
         self.vector_store = None
         self._load_or_create_index()
 
     def _load_or_create_index(self):
         try:
-            if os.path.exists(self.vector_store_path):
+            # Check if index exists locally or can be restored from Amazon S3 backup
+            from backend.services.s3_service import get_s3_service
+            s3_service = get_s3_service()
+            if not os.path.exists(self.vector_store_path) or not os.path.exists(os.path.join(self.vector_store_path, "index.faiss")):
+                logger.info("Local FAISS index not found; attempting restore from Amazon S3...")
+                s3_service.restore_faiss_index(self.vector_store_path)
+
+            if os.path.exists(self.vector_store_path) and os.path.exists(os.path.join(self.vector_store_path, "index.faiss")):
                 self.vector_store = FAISS.load_local(
                     self.vector_store_path, 
                     self.embeddings,
@@ -23,19 +30,21 @@ class RAGService:
                 logger.info("Loaded existing FAISS vector store.")
             else:
                 # Initialize an empty index with a dummy document
-                dummy_doc = Document(page_content="empty", metadata={"source": "init"})
+                os.makedirs(self.vector_store_path, exist_ok=True)
+                dummy_doc = Document(page_content="Candidate index initialized", metadata={"source": "init"})
                 self.vector_store = FAISS.from_documents([dummy_doc], self.embeddings)
                 self.vector_store.save_local(self.vector_store_path)
                 logger.info("Created new FAISS vector store.")
+                # Initial backup to S3
+                s3_service.backup_faiss_index(self.vector_store_path)
         except Exception as e:
             logger.error(f"Failed to load or create FAISS index: {e}")
             raise e
 
     def index_candidate_resume(self, candidate_id: int, candidate_name: str, raw_text: str):
         """
-        Chunks the resume text and adds it to the FAISS index.
+        Chunks the resume text, adds it to the local FAISS index, and backs up to S3.
         """
-        # Basic chunking (for a real app, use RecursiveCharacterTextSplitter)
         from langchain_text_splitters import RecursiveCharacterTextSplitter
         
         splitter = RecursiveCharacterTextSplitter(
@@ -57,6 +66,15 @@ class RAGService:
             self.vector_store.add_documents(documents)
             self.vector_store.save_local(self.vector_store_path)
             logger.info(f"Indexed {len(documents)} chunks for candidate {candidate_name} (ID: {candidate_id}).")
+            
+            # Asynchronously / immediately back up updated index to S3
+            from backend.services.s3_service import get_s3_service
+            get_s3_service().backup_faiss_index(self.vector_store_path)
+
+    def backup_to_s3(self) -> bool:
+        """Explicitly triggers FAISS index backup to Amazon S3."""
+        from backend.services.s3_service import get_s3_service
+        return get_s3_service().backup_faiss_index(self.vector_store_path)
 
     def get_retriever(self):
         if self.vector_store:

@@ -16,17 +16,17 @@ class DraftedEmail(BaseModel):
     subject: str = Field(description="The subject line of the email")
     body: str = Field(description="The body of the email in plain text or simple markdown")
 
-def generate_email_draft(candidate_id: int, job_id: int, email_type: EmailType, context: str = "", db_path: str = "data/recruiter.db") -> DraftedEmail:
+def generate_email_draft(candidate_id: int, job_id: int, email_type: EmailType, context: str = "") -> DraftedEmail:
     """
     Drafts a personalized email for a candidate using OpenAI.
     """
     # 1. Gather context
-    candidate_details = get_candidate_details(candidate_id, job_id, db_path)
+    candidate_details = get_candidate_details(candidate_id, job_id)
     if not candidate_details:
         raise ValueError(f"Candidate {candidate_id} details could not be retrieved for Job {job_id}")
 
-    # Fetch job description and recruiter name (if we want to simulate from a specific recruiter, we can use a dummy for now)
-    conn = get_connection(db_path)
+    # Fetch job description and recruiter name
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT title, description FROM jobs WHERE id = ?", (job_id,))
     job_row = cursor.fetchone()

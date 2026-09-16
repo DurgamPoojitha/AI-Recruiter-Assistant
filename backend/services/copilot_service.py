@@ -26,8 +26,9 @@ def answer_copilot_query(query: str, job_id: int = None, session_id: str = "defa
     if not os.environ.get("OPENAI_API_KEY"):
         return "⚠️ OpenAI API Key is missing. Please set the OPENAI_API_KEY environment variable to use the Recruiter Copilot."
         
-    db_path = "sqlite:///data/recruiter.db"
-    db = SQLDatabase.from_uri(db_path)
+    from backend.core.config import settings
+    db_uri = settings.DATABASE_URL
+    db = SQLDatabase.from_uri(db_uri)
     
     llm = ChatOpenAI(model="gpt-4o", temperature=0)
     
@@ -50,7 +51,7 @@ def answer_copilot_query(query: str, job_id: int = None, session_id: str = "defa
     # Context injection for the Agent
     system_message = (
         "You are an expert Enterprise AI Recruiter Copilot. "
-        "You have access to an SQLite database containing jobs, candidates, match_results, and ATS pipelines. "
+        "You have access to a relational database containing jobs, candidates, match_results, and ATS pipelines. "
         "You also have a candidate_resume_search tool to semantically search the actual raw text of candidate resumes. "
         "When asked about statistics, pipeline status, or scores, query the database. "
         "When asked about specific experiences or details not in the database columns, use the candidate_resume_search tool. "
