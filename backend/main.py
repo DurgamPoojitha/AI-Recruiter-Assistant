@@ -39,11 +39,27 @@ app.include_router(communication.router, prefix="/communication", tags=["Communi
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Enterprise AI Recruiter API (Phase 1)"}
+    return {"message": "Welcome to AI Recruiter API"}
+
+@app.get("/health")
+def health_check():
+    """Lightweight health check endpoint for AWS Application Load Balancer (ALB) target groups."""
+    from backend.core.config import settings
+    return {
+        "status": "healthy",
+        "database": "postgresql" if settings.is_postgres else "sqlite",
+        "s3_enabled": settings.is_s3_enabled,
+        "environment": settings.ENVIRONMENT
+    }
 
 @app.on_event("startup")
 async def startup_event():
     logger.info("Application starting...")
+    # Initialize database schema and tables
+    init_db()
     # Trigger lazy load of embedding model on startup
     from backend.services.embedding_service import get_embedding_service
     get_embedding_service()
+    # Initialize FAISS and attempt S3 restore if necessary
+    from backend.services.rag_service import get_rag_service
+    get_rag_service()

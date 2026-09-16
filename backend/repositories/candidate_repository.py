@@ -3,7 +3,16 @@ from typing import Any, Dict, Optional
 from backend.repositories.base import BaseRepository
 
 class CandidateRepository(BaseRepository):
-    def insert_candidate(self, parsed_resume: Any, raw_text: str, filename: str, org_id: int) -> int:
+    def insert_candidate(
+        self,
+        parsed_resume: Any,
+        raw_text: str,
+        filename: str,
+        org_id: int = 1,
+        s3_key: Optional[str] = None,
+        file_size: Optional[int] = None,
+        content_type: Optional[str] = None
+    ) -> int:
         conn = self._get_connection()
         cursor = conn.cursor()
         
@@ -18,8 +27,9 @@ class CandidateRepository(BaseRepository):
         cursor.execute("""
         INSERT INTO candidates (
             name, email, phone, skills, education, experience, certifications, 
-            total_experience_years, highest_education_level, raw_text, filename, org_id, risk_level, risk_factors
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            total_experience_years, highest_education_level, raw_text, filename, org_id, risk_level, risk_factors,
+            s3_key, file_size, content_type
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             parsed_resume.name,
             parsed_resume.email,
@@ -34,10 +44,22 @@ class CandidateRepository(BaseRepository):
             filename,
             org_id,
             risk_level,
-            risk_factors_json
+            risk_factors_json,
+            s3_key,
+            file_size,
+            content_type
         ))
         candidate_id = cursor.lastrowid
         
+        # Populate candidate_resumes metadata record if s3_key is present
+        if s3_key:
+            from backend.core.config import settings
+            bucket_name = settings.S3_BUCKET_NAME or "local"
+            cursor.execute("""
+                INSERT INTO candidate_resumes (candidate_id, original_filename, s3_key, s3_bucket, content_type, file_size)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (candidate_id, filename, s3_key, bucket_name, content_type or "application/pdf", file_size or 0))
+
         # Populate candidate_skills
         if parsed_resume.skills:
             skill_inserts = [(candidate_id, skill) for skill in parsed_resume.skills]
@@ -128,6 +150,10 @@ class CandidateRepository(BaseRepository):
             c.highest_education_level as highest_education_level,
             c.risk_level as risk_level,
             c.risk_factors as risk_factors,
+            c.filename as filename,
+            c.s3_key as s3_key,
+            c.file_size as file_size,
+            c.content_type as content_type,
             mr.final_score as match_score,
             mr.ats_score as ats_score
         FROM candidates c
@@ -153,9 +179,26 @@ class CandidateRepository(BaseRepository):
             "highest_education_level": row["highest_education_level"],
             "risk_level": row["risk_level"] or "Low",
             "risk_factors": json.loads(row["risk_factors"]) if row["risk_factors"] else [],
+            "filename": row.get("filename") if isinstance(row, dict) else row["filename"],
+            "s3_key": row.get("s3_key") if isinstance(row, dict) else row["s3_key"],
+            "file_size": row.get("file_size") if isinstance(row, dict) else row["file_size"],
+            "content_type": row.get("content_type") if isinstance(row, dict) else row["content_type"],
             "match_score": row["match_score"] or 0.0,
             "ats_score": row["ats_score"] or 0.0
         }
+
+    def get_candidate_resume_info(self, candidate_id: int) -> Optional[Dict[str, Any]]:
+        """Retrieves S3 key, filename, and metadata for a candidate's resume."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, name, filename, s3_key, file_size, content_type
+            FROM candidates
+            WHERE id = ?
+        """, (candidate_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
 
     def get_candidates_for_job(self, job_id: int) -> list:
         conn = self._get_connection()

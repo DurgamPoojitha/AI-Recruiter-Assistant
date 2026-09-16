@@ -9,8 +9,21 @@ def insert_job(title: str, description: str, org_id: int = 1) -> int:
 def get_job_description(job_id: int) -> str:
     return JobRepository().get_job_description(job_id)
 
-def insert_candidate(parsed_resume, raw_text: str, filename: str, org_id: int = 1) -> int:
-    return CandidateRepository().insert_candidate(parsed_resume, raw_text, filename, org_id)
+def insert_candidate(
+    parsed_resume,
+    raw_text: str,
+    filename: str,
+    org_id: int = 1,
+    s3_key: str = None,
+    file_size: int = None,
+    content_type: str = None
+) -> int:
+    return CandidateRepository().insert_candidate(
+        parsed_resume, raw_text, filename, org_id, s3_key, file_size, content_type
+    )
+
+def get_candidate_resume_info(candidate_id: int):
+    return CandidateRepository().get_candidate_resume_info(candidate_id)
 
 def get_candidate_details(candidate_id: int, job_id: int):
     return CandidateRepository().get_candidate_details(candidate_id, job_id)
