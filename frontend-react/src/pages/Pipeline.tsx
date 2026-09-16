@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Users, Calendar, TrendingUp, X, UploadCloud, FileText, Filter } from 'lucide-react';
+import { Plus, Users, Calendar, TrendingUp, X, UploadCloud, FileText, Filter, Briefcase } from 'lucide-react';
 import { api } from '../api';
 import { FilterPanel, FilterState } from '../components/FilterPanel';
 import { CandidateProfileModal } from '../components/CandidateProfileModal';
@@ -14,6 +14,12 @@ function Pipeline() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Job Creation Modal State
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false);
+  const [newJobTitle, setNewJobTitle] = useState('');
+  const [newJobDescription, setNewJobDescription] = useState('');
+  const [isCreatingJob, setIsCreatingJob] = useState(false);
   
   // Deep Dive Modal State
   const [viewingCandidateId, setViewingCandidateId] = useState<number | null>(null);
@@ -130,6 +136,30 @@ function Pipeline() {
     }
   };
 
+  const handleCreateJob = async () => {
+    if (!newJobTitle.trim() || !newJobDescription.trim()) {
+      alert("Please provide both a job title and description.");
+      return;
+    }
+    setIsCreatingJob(true);
+    try {
+      const res = await api.post('/ats/jobs', {
+        title: newJobTitle.trim(),
+        description: newJobDescription.trim()
+      });
+      setIsJobModalOpen(false);
+      setNewJobTitle('');
+      setNewJobDescription('');
+      await fetchJobs();
+      alert("Job created successfully!");
+    } catch (error) {
+      console.error("Failed to create job:", error);
+      alert("Failed to create job. Please verify backend connectivity.");
+    } finally {
+      setIsCreatingJob(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', height: '100%' }}>
       {/* Left Filter Sidebar */}
@@ -160,6 +190,9 @@ function Pipeline() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="btn-secondary" onClick={() => setIsJobModalOpen(true)}>
+              <Briefcase size={18} /> New Job
+            </button>
             <button className="btn-secondary" onClick={() => setShowFilters(!showFilters)}>
               <Filter size={18} /> Filters {Object.values(filters).some(v => v !== 0 && v !== false && v !== '' && v.length !== 0) && ' (Active)'}
             </button>
@@ -327,6 +360,52 @@ function Pipeline() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Create New Job Modal */}
+      {isJobModalOpen && (
+        <div className="modal-overlay" onClick={() => !isCreatingJob && setIsJobModalOpen(false)}>
+          <div className="profile-modal-content" style={{ maxWidth: '600px', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Briefcase size={20} color="var(--primary-color)" /> Post New Position
+              </h2>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }} onClick={() => !isCreatingJob && setIsJobModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '6px', fontSize: '14px' }}>Job Title</label>
+                <input 
+                  type="text"
+                  placeholder="e.g. Senior Cloud Engineer"
+                  value={newJobTitle}
+                  onChange={e => setNewJobTitle(e.target.value)}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontWeight: '500', marginBottom: '6px', fontSize: '14px' }}>Job Description & Requirements</label>
+                <textarea 
+                  rows={8}
+                  placeholder="Enter role responsibilities, required skills (e.g. Python, AWS, PostgreSQL, Docker), experience requirements..."
+                  value={newJobDescription}
+                  onChange={e => setNewJobDescription(e.target.value)}
+                  style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', fontSize: '14px', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button className="btn-secondary" onClick={() => setIsJobModalOpen(false)} disabled={isCreatingJob}>
+                Cancel
+              </button>
+              <button className="btn-primary" onClick={handleCreateJob} disabled={isCreatingJob}>
+                {isCreatingJob ? 'Posting Job...' : 'Create Job'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Candidate Profile Deep Dive Modal */}

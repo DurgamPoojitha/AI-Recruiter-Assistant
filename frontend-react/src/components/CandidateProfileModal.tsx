@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ShieldAlert, Award, Briefcase, GraduationCap, Code } from 'lucide-react';
+import { X, ShieldAlert, Award, Briefcase, GraduationCap, Code, Download } from 'lucide-react';
 import { api } from '../api';
 
 interface CandidateProfileModalProps {
@@ -11,6 +11,7 @@ interface CandidateProfileModalProps {
 export function CandidateProfileModal({ candidateId, jobId, onClose }: CandidateProfileModalProps) {
   const [prepData, setPrepData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     const fetchPrep = async () => {
@@ -25,6 +26,24 @@ export function CandidateProfileModal({ candidateId, jobId, onClose }: Candidate
     };
     fetchPrep();
   }, [candidateId, jobId]);
+
+  const handleDownloadResume = async () => {
+    setIsDownloading(true);
+    try {
+      const res = await api.get(`/ats/candidates/${candidateId}/resume-url`);
+      const { download_url } = res.data;
+      if (download_url) {
+        window.open(download_url, '_blank');
+      } else {
+        alert("Resume download URL could not be generated.");
+      }
+    } catch (err) {
+      console.error("Failed to fetch resume download URL", err);
+      alert("Failed to retrieve resume from Amazon S3.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -47,16 +66,41 @@ export function CandidateProfileModal({ candidateId, jobId, onClose }: Candidate
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               
               {/* Header Info */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                <div className="avatar" style={{ width: '80px', height: '80px', fontSize: '32px' }}>
-                  {prepData.candidate_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                  <div className="avatar" style={{ width: '80px', height: '80px', fontSize: '32px' }}>
+                    {prepData.candidate_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>{prepData.candidate_name}</h1>
+                    <p style={{ color: 'var(--text-secondary)', background: 'var(--primary-light)', color: 'var(--primary-color)', padding: '4px 12px', borderRadius: '16px', display: 'inline-block', fontWeight: '500', fontSize: '13px' }}>
+                      {prepData.recommended_focus}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>{prepData.candidate_name}</h1>
-                  <p style={{ color: 'var(--text-secondary)', background: 'var(--primary-light)', color: 'var(--primary-color)', padding: '4px 12px', borderRadius: '16px', display: 'inline-block', fontWeight: '500', fontSize: '13px' }}>
-                    {prepData.recommended_focus}
-                  </p>
-                </div>
+
+                {/* S3 Pre-signed Resume Download Button */}
+                <button 
+                  onClick={handleDownloadResume} 
+                  disabled={isDownloading}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 18px',
+                    background: 'var(--primary-color)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    cursor: isDownloading ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  <Download size={18} />
+                  {isDownloading ? "Generating S3 URL..." : "Download Original Resume"}
+                </button>
               </div>
 
               {/* Technical Validation Questions (Existing Skills) */}
