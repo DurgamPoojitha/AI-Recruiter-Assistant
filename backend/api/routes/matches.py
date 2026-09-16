@@ -100,6 +100,10 @@ async def analyze_ats(request: Request, resume: UploadFile = File(...)):
     except Exception as e:
         raise AppError(f"Failed to analyze resume ATS: {str(e)}", 500)
 
+from backend.utils import extract_text_from_file, preprocess_text, load_skills, validate_resume_upload
+from backend.services.s3_service import get_s3_service
+from backend.core.database import get_connection
+
 @router.post("/analyze_bulk", response_model=BulkAnalysisResponse, dependencies=[Depends(allow_recruiter)])
 @limiter.limit("3/minute")
 async def analyze_bulk(
@@ -116,10 +120,20 @@ async def analyze_bulk(
         
         parsed_jd = parse_jd(job_description, PREDEFINED_SKILLS)
         clean_jd = preprocess_text(job_description)
+        s3_service = get_s3_service()
         
         for resume in resumes:
             file_bytes = await resume.read()
-            raw_resume_text = extract_text_from_file(file_bytes, resume.filename)
+            try:
+                validate_resume_upload(file_bytes, resume.filename)
+            except ValueError as val_err:
+                raise AppError(f"File '{resume.filename}' failed validation: {str(val_err)}", 400)
+
+            try:
+                raw_resume_text = extract_text_from_file(file_bytes, resume.filename)
+            except ValueError as val_err:
+                raise AppError(f"File '{resume.filename}' extraction failed: {str(val_err)}", 400)
+
             parsed_resume = parse_resume(raw_resume_text, PREDEFINED_SKILLS)
             clean_resume = preprocess_text(raw_resume_text)
             
@@ -133,8 +147,26 @@ async def analyze_bulk(
             
             candidate_id = insert_candidate(parsed_resume, raw_text=raw_resume_text, filename=resume.filename)
             
+            # Upload to Amazon S3
+            s3_meta = s3_service.upload_resume(
+                candidate_id=candidate_id,
+                file_bytes=file_bytes,
+                original_filename=resume.filename,
+                content_type=resume.content_type
+            )
+
+            # Update candidate record with s3_key reference
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE candidates SET s3_key = ?, file_size = ?, content_type = ? WHERE id = ?",
+                (s3_meta["s3_key"], s3_meta["file_size"], s3_meta["content_type"], candidate_id)
+            )
+            conn.commit()
+            conn.close()
+
             # Index candidate in RAG FAISS Vector Store
-            get_rag_service().index_candidate_resume(candidate_id, parsed_resume.name, raw_resume_text)
+            get_rag_service().index_candidate_resume(candidate_id, parsed_resume.name or resume.filename, raw_resume_text)
             
             insert_match_result(
                 candidate_id=candidate_id,
@@ -159,6 +191,8 @@ async def analyze_bulk(
             for r in rank_records
         ]
         return BulkAnalysisResponse(job_id=job_id, rankings=rankings)
+    except AppError:
+        raise
     except Exception as e:
         raise AppError(f"Bulk analysis failed: {str(e)}", 500)
 
@@ -186,8 +220,7 @@ def download_report(candidate_id: int, job_id: int):
         if not candidate:
             raise AppError("Candidate not found", 404)
             
-        conn = sqlite3.connect("data/recruiter.db")
-        conn.row_factory = sqlite3.Row
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT final_score, ats_score, strengths, weaknesses, recommendation 
@@ -209,7 +242,7 @@ def download_report(candidate_id: int, job_id: int):
             "missing_skills": []
         }
         
-        conn = sqlite3.connect("data/recruiter.db")
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT description FROM jobs WHERE id = ?", (job_id,))
         jd_row = cursor.fetchone()

@@ -1,19 +1,65 @@
-import fitz
+import os
 import re
+import fitz
+from backend.core.config import settings
 
-def extract_text_from_file(file_content, filename):
+def validate_resume_upload(file_bytes: bytes, filename: str) -> str:
+    """
+    Validates uploaded resume file type, header magic bytes, and size limit.
+    Returns the normalized extension.
+    Raises ValueError with user-friendly error message on violation.
+    """
+    if not filename:
+        raise ValueError("Filename cannot be empty.")
+
+    # 1. Validate file size
+    file_size = len(file_bytes)
+    if file_size == 0:
+        raise ValueError("The uploaded file is empty (0 bytes).")
+        
+    max_bytes = settings.MAX_UPLOAD_SIZE_BYTES
+    if file_size > max_bytes:
+        max_mb = max_bytes // (1024 * 1024)
+        raise ValueError(f"File size ({file_size / (1024 * 1024):.1f}MB) exceeds the maximum allowed limit of {max_mb}MB.")
+
+    # 2. Validate file extension (Strict PDF + TXT)
+    ext = os.path.splitext(filename.lower())[1]
+    if ext not in settings.ALLOWED_EXTENSIONS:
+        allowed_str = ", ".join(settings.ALLOWED_EXTENSIONS)
+        raise ValueError(f"Unsupported file type '{ext}'. Allowed file formats: {allowed_str}")
+
+    # 3. Validate Magic Bytes / Header
+    if ext == ".pdf":
+        if not file_bytes.startswith(b"%PDF"):
+            raise ValueError("Corrupted or invalid PDF header. Please upload a standard PDF document.")
+
+    return ext
+
+def extract_text_from_file(file_content: bytes, filename: str) -> str:
     """
     Extract text cleanly from a PDF or TXT file.
     file_content: raw bytes of the file
     """
     text = ""
-    if filename.endswith(".pdf"):
-        # Use fitz (PyMuPDF) to extract text
-        doc = fitz.open(stream=file_content, filetype="pdf")
-        for page in doc:
-            text += page.get_text()
-    elif filename.endswith(".txt"):
-        text = file_content.decode("utf-8", errors="ignore")
+    ext = os.path.splitext(filename.lower())[1]
+    
+    if ext == ".pdf":
+        try:
+            doc = fitz.open(stream=file_content, filetype="pdf")
+            for page in doc:
+                text += page.get_text()
+            doc.close()
+        except Exception as e:
+            raise ValueError(f"Failed to parse PDF document: {str(e)}")
+    elif ext == ".txt":
+        try:
+            text = file_content.decode("utf-8", errors="ignore")
+        except Exception as e:
+            raise ValueError(f"Failed to parse text document: {str(e)}")
+            
+    if not text.strip():
+        raise ValueError("Could not extract any readable text from the document.")
+        
     return text
 
 def preprocess_text(text):
