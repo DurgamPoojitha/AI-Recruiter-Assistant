@@ -19,3 +19,5 @@ langchain-huggingface
 slowapi
 PyJWT
 cryptography
+boto3==1.34.131
+psycopg2-binary==2.9.9
