@@ -2,7 +2,14 @@ import os
 from langchain_community.utilities import SQLDatabase
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_openai import ChatOpenAI
-from langchain.agents.agent_types import AgentType
+try:
+    from langchain.agents import AgentType
+except ImportError:
+    try:
+        from langchain.agents.agent_types import AgentType
+    except ImportError:
+        AgentType = None
+
 from langchain.memory import ConversationBufferWindowMemory
 from langchain.tools.retriever import create_retriever_tool
 from backend.services.rag_service import get_rag_service
