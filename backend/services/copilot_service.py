@@ -10,14 +10,33 @@ except ImportError:
     except ImportError:
         AgentType = None
 
-from langchain.memory import ConversationBufferWindowMemory
-from langchain.tools.retriever import create_retriever_tool
+try:
+    from langchain.memory import ConversationBufferWindowMemory
+except ImportError:
+    try:
+        from langchain_community.memory import ConversationBufferWindowMemory
+    except ImportError:
+        ConversationBufferWindowMemory = None
+
+try:
+    from langchain.tools.retriever import create_retriever_tool
+except ImportError:
+    try:
+        from langchain.tools import create_retriever_tool
+    except ImportError:
+        try:
+            from langchain_core.tools import create_retriever_tool
+        except ImportError:
+            create_retriever_tool = None
+
 from backend.services.rag_service import get_rag_service
 
 # Global dictionary to store conversational memory per session
 _session_memories = {}
 
 def get_copilot_memory(session_id: str):
+    if ConversationBufferWindowMemory is None:
+        return None
     if session_id not in _session_memories:
         _session_memories[session_id] = ConversationBufferWindowMemory(
             memory_key="chat_history", 
@@ -25,6 +44,7 @@ def get_copilot_memory(session_id: str):
             return_messages=True
         )
     return _session_memories[session_id]
+
 
 def answer_copilot_query(query: str, job_id: int = None, session_id: str = "default") -> str:
     """
