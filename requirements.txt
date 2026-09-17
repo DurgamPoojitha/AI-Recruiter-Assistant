@@ -15,6 +15,7 @@ langchain-openai
 faiss-cpu
 python-dotenv
 langchain-huggingface
+sentence-transformers
 
 slowapi
 PyJWT
